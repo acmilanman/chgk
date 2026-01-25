@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ЧГК — Админ</title>
+  <link rel="stylesheet" href="/theme.css">
+
+  <!-- XLSX standalone (browser build) -->
+  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px;}
+    .tabBtn{
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,25,55,.25);
+      color:var(--ink);
+      padding:10px 14px;border-radius:999px;
+      cursor:pointer;box-shadow:var(--shadow2);
+    }
+    .tabBtn.active{
+      background:linear-gradient(180deg, rgba(193,240,251,.95), rgba(97,186,219,.92));
+      color:#06263d;border-color:transparent;
+    }
+    .overlay{
+      position:fixed;inset:0;background:rgba(0,10,25,.62);
+      display:flex;align-items:center;justify-content:center;padding:16px;z-index:999;
+    }
+    .modal{
+      width:min(520px, 100%);border-radius:22px;padding:16px;
+      background:linear-gradient(180deg, rgba(0,40,75,.65), rgba(0,20,45,.55));
+      border:1px solid rgba(255,255,255,.18);box-shadow:var(--shadow);
+      backdrop-filter:blur(8px);
+    }
+    .modal h2{margin:0 0 6px 0;font-size:18px;}
+    .modal .muted{margin:0 0 10px 0;color:var(--muted);}
+    .hidden{display:none !important;}
+    .miniBtn{min-width:auto;}
+
+    /* results log styling */
+    .logBox{
+      margin-top:8px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,25,55,.18);
+      color: rgba(234,248,255,.88);
+      font-size: 12px;
+      line-height: 1.25;
+      max-height: 120px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .logLine{ opacity: .78; }
+    .logLine.last{
+      opacity: 1;
+      font-weight: 900;
+      color: #eaf8ff;
+      background: rgba(193,240,251,.10);
+      border-radius: 10px;
+      padding: 4px 6px;
+      display:block;
+      margin: 4px 0 0;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Password overlay -->
+  <div id="authOverlay" class="overlay" style="display:none;">
+    <div class="modal">
+      <h2>Вход администратора</h2>
+      <div class="muted">Введите пароль для доступа к управлению игрой.</div>
+      <input id="adminPass" type="password" placeholder="Пароль">
+      <div class="row" style="margin-top:12px;">
+        <button id="btnLogin" class="btn ok miniBtn">Войти</button>
+        <button id="btnToCaptain" class="btn secondary miniBtn">На экран капитана</button>
+      </div>
+      <div id="authMsg" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="brandbar">
+      <div class="brand">
+        <div class="title">ЧГК — Администрирование</div>
+        <div class="subtitle">Команды · Вопросы · Игра · Результаты</div>
+      </div>
+      <div class="pill"><span class="badge" id="statusBox">WebSocket: …</span></div>
+    </div>
+
+    <div class="tabs">
+      <button id="tabTeams" class="tabBtn active">Команды</button>
+      <button id="tabQuestions" class="tabBtn">Вопросы</button>
+      <button id="tabGame" class="tabBtn">Игра</button>
+      <button id="tabResults" class="tabBtn">Результаты</button>
+    </div>
+
+    <div id="msgBox"></div>
+
+    <!-- TAB: Teams -->
+    <div id="pageTeams">
+      <div class="grid two">
+        <div class="card">
+          <div class="head">
+            <h2>Команды</h2>
+            <span class="badge">Текст / XLSX</span>
+          </div>
+          <div class="small">По одной команде на строку.</div>
+          <div class="hr"></div>
+
+          <textarea id="teamsInput" rows="10" placeholder="Команда 1&#10;Команда 2"></textarea>
+
+          <div class="row" style="margin-top:12px;">
+            <button id="btnLoadTeams" class="btn ok miniBtn">Загрузить команды</button>
+            <button id="btnExportTeams" class="btn secondary miniBtn">Скачать teams.xlsx</button>
+            <button id="btnImportTeams" class="btn secondary miniBtn">Загрузить teams.xlsx</button>
+            <input id="fileTeams" type="file" accept=".xlsx" style="display:none;">
+          </div>
+
+          <div class="hr"></div>
+          <div class="row">
+            <button id="btnResetTeams" class="btn danger miniBtn">Сбросить команды</button>
+            <button id="btnResetAll" class="btn danger miniBtn">Сбросить ВСЁ</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <h2>Онлайн / Кик</h2>
+            <span class="badge">Сессии</span>
+          </div>
+          <div class="small">Если “слетело” — кикни, чтобы капитан зашёл заново.</div>
+          <div class="hr"></div>
+
+          <table>
+            <thead><tr><th>Команда</th><th>Онлайн</th><th></th></tr></thead>
+            <tbody id="teamsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Questions -->
+    <div id="pageQuestions" class="hidden">
+      <div class="card">
+        <div class="head">
+          <h2>Добавить вопрос</h2>
+          <span class="badge">По одному</span>
+        </div>
+        <div class="small">Ответ: 1-я строка — ответ, ниже — комментарий.</div>
+        <div class="hr"></div>
+
+        <div class="grid two">
+          <div>
+            <div class="small" style="margin-bottom:6px;">Вопрос</div>
+            <textarea id="qText" rows="6" placeholder="Текст вопроса"></textarea>
+          </div>
+          <div>
+            <div class="small" style="margin-bottom:6px;">Ответ + комментарий</div>
+            <textarea id="aText" rows="6" placeholder="Ответ&#10;Комментарий"></textarea>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button id="btnAddQuestion" class="btn ok miniBtn">Добавить вопрос</button>
+          <button id="btnExportQuestions" class="btn secondary miniBtn">Скачать questions.xlsx</button>
+          <button id="btnImportQuestions" class="btn secondary miniBtn">Загрузить questions.xlsx</button>
+          <input id="fileQuestions" type="file" accept=".xlsx" style="display:none;">
+          <button id="btnResetQuestions" class="btn danger miniBtn">Сбросить вопросы</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <h2>Пакет (правка + раздатка)</h2>
+          <span class="badge">Картинки ≤ 1MB</span>
+        </div>
+        <div class="small">Раздатка = картинка вопроса, “картинка комментария” показывается под ответом.</div>
+        <div class="hr"></div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Вопрос</th><th>Ответ</th><th>Комментарий</th><th>Картинки</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="questionsTbody"></tbody>
+        </table>
+
+        <input id="fileHandout" type="file" accept="image/*" style="display:none;">
+        <input id="fileCommentImg" type="file" accept="image/*" style="display:none;">
+      </div>
+    </div>
+
+    <!-- TAB: Game -->
+    <div id="pageGame" class="hidden">
+      <div class="grid two">
+        <div class="card">
+          <div class="head">
+            <h2>Проведение игры</h2>
+            <span class="badge" id="shownBadge">Ждите</span>
+          </div>
+
+          <label class="pill" style="justify-content:space-between; width:100%; margin-bottom:12px;">
+            <span class="small">Автостарт таймера при показе вопроса</span>
+            <input type="checkbox" id="autoStartChk" />
+          </label>
+
+          <div class="card" style="padding:12px;">
+            <div class="head">
+              <h3>Сейчас у капитанов</h3>
+              <span class="badge" id="shownTitle">Ждите</span>
+            </div>
+            <div id="shownBody" class="small" style="white-space: pre-wrap;"></div>
+
+            <div class="row" style="margin-top:10px;">
+              <button id="btnGameHandout" class="btn secondary miniBtn">Раздатка…</button>
+              <button id="btnGameCommentImg" class="btn secondary miniBtn">Картинка комментария…</button>
+              <button id="btnGameClearHandout" class="btn secondary miniBtn">Убрать раздатку</button>
+              <button id="btnGameClearCommentImg" class="btn secondary miniBtn">Убрать карт.комм</button>
+              <input id="fileGameHandout" type="file" accept="image/*" style="display:none;">
+              <input id="fileGameCommentImg" type="file" accept="image/*" style="display:none;">
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button id="btnShowPrev" class="btn secondary miniBtn">Назад</button>
+            <button id="btnShowNext" class="btn ok miniBtn">Показать …</button>
+            <button id="btnBreak" class="btn secondary miniBtn">Перерыв</button>
+            <button id="btnTable" class="btn secondary miniBtn">Таблица</button>
+            <button id="btnResetShow" class="btn danger miniBtn">Сброс (Ждите)</button>
+            <button id="btnEndGame" class="btn danger miniBtn">Закончить игру</button>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="timer">
+            <div class="timerLabel">
+              <div class="small">Таймер</div>
+              <div class="small" id="timerHint">60 секунд</div>
+            </div>
+            <div class="timerCircle"><div class="t" id="timerValue">60</div></div>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button id="btnTimerStart" class="btn ok miniBtn">Старт 60с</button>
+            <button id="btnTimerPause" class="btn secondary miniBtn">Пауза</button>
+            <button id="btnTimerStop" class="btn secondary miniBtn">Стоп</button>
+            <button id="btnTimerAdd10" class="btn secondary miniBtn">+10 сек</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <h2>Ответы (текущий вопрос)</h2>
+            <span class="badge">Админ ставит + / −</span>
+          </div>
+          <div class="small">Выставь “Да/Нет”, потом нажми “Подтвердить результаты”.</div>
+          <div class="hr"></div>
+
+          <table>
+            <thead><tr><th>Команда</th><th>Ответ</th><th>Верно?</th></tr></thead>
+            <tbody id="answersTbody"></tbody>
+          </table>
+
+          <div class="row" style="margin-top:12px; justify-content:flex-end;">
+            <button id="btnCommitCurrent" class="btn ok miniBtn">Подтвердить результаты</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <h2>Онлайн-таблица (+/− по вопросам)</h2>
+          <span class="badge">Итоги</span>
+        </div>
+        <div class="hr"></div>
+        <table>
+          <thead id="scoreHead"></thead>
+          <tbody id="scoreBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: Results -->
+    <div id="pageResults" class="hidden">
+      <div class="card">
+        <div class="head">
+          <h2>Редактор зачёта + лог ответов</h2>
+          <span class="badge">Последний вариант подсвечен</span>
+        </div>
+        <div class="small">Можно смотреть все отправки по каждой команде; зачёт меняется справа.</div>
+        <div class="hr"></div>
+
+        <div class="row">
+          <div style="flex:1; min-width:240px;">
+            <div class="small" style="margin-bottom:6px;">Вопрос</div>
+            <select id="resQuestionSelect"></select>
+          </div>
+          <div class="row" style="align-self:flex-end;">
+            <button id="btnResRefresh" class="btn secondary miniBtn">Обновить</button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <table>
+          <thead><tr><th>Команда</th><th>Ответ (последний) + лог</th><th>Зачёт</th></tr></thead>
+          <tbody id="resTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

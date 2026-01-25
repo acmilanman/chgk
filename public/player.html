@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ЧГК — Экран</title>
+  <link rel="stylesheet" href="/theme.css">
+  <style>
+    /* TV layout overrides */
+    .tvWrap{
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 22px 18px 28px;
+    }
+    .tvTop{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom: 12px;
+    }
+    .tvMeta{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .tvMeta .line{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .tvPhase{
+      font-size: clamp(18px, 2.2vw, 28px);
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .tvCount{
+      font-size: clamp(14px, 1.4vw, 18px);
+      color: var(--muted);
+    }
+    .tvTimer{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .tvTimerNum{
+      width: 76px;
+      height: 76px;
+      border-radius: 999px;
+      border: 2px solid rgba(193,240,251,.55);
+      background:
+        radial-gradient(circle at 35% 30%, rgba(193,240,251,.22), transparent 55%),
+        rgba(0,30,70,.30);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: var(--shadow2);
+      font-weight: 900;
+      font-size: 28px;
+    }
+    .tvText{
+      font-size: clamp(28px, 3.2vw, 54px);
+      line-height: 1.18;
+      white-space: pre-wrap;
+    }
+    .tvAnswer{
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,.14);
+    }
+    .tvAnswer .tvText{
+      font-size: clamp(24px, 2.7vw, 46px);
+    }
+    .tvImg{
+      width:100%;
+      max-height: 46vh;
+      object-fit: contain;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,25,55,.25);
+      margin: 10px 0 12px;
+    }
+    .cornerLogos{
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      z-index: 10;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding: 8px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,25,55,.25);
+      backdrop-filter: blur(6px);
+    }
+    .cornerLogos img{ height: 32px; opacity: .95; }
+    .tvFooter{
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="tvWrap">
+    <div class="tvTop">
+      <div class="tvMeta">
+        <div class="line">
+          <div class="tvPhase" id="phaseTitle">Ждите</div>
+          <div class="badge" id="connBadge">WebSocket: …</div>
+        </div>
+        <div class="tvCount" id="countTitle">—</div>
+      </div>
+
+      <div class="tvTimer" aria-label="Таймер">
+        <div class="tvTimerNum" id="timerValue">60</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <img id="questionImg" class="tvImg hidden" alt="Раздатка">
+      <div id="questionText" class="tvText"></div>
+
+      <div id="answerBlock" class="tvAnswer hidden">
+        <div id="answerText" class="tvText"></div>
+        <img id="commentImg" class="tvImg hidden" alt="Картинка в комментарии">
+      </div>
+    </div>
+
+    <div class="tvFooter">© Лига Естественного Интеллекта</div>
+  </div>
+
+  <!-- corner logos -->
+  <div class="cornerLogos">
+    <img src="/logo-profsouz.png" alt="Профсоюз">
+    <img src="/logo-gazprom.png" alt="ПАО Газпром">
+  </div>
+
+  <script>
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${protocol}://${location.host}/?role=player`);
+
+    const connBadge = document.getElementById('connBadge');
+    const phaseTitle = document.getElementById('phaseTitle');
+    const countTitle = document.getElementById('countTitle');
+    const timerValue = document.getElementById('timerValue');
+
+    const questionImg = document.getElementById('questionImg');
+    const questionText = document.getElementById('questionText');
+
+    const answerBlock = document.getElementById('answerBlock');
+    const answerText = document.getElementById('answerText');
+    const commentImg = document.getElementById('commentImg');
+
+    let shown = { phase: 'waiting' };
+    let timer = { running: false, remainingSec: 60 };
+    let totalQuestions = 0;
+
+    function setVisible(el, on) {
+      el.classList.toggle('hidden', !on);
+    }
+
+    function renderAll() {
+      // timer
+      timerValue.textContent = timer.remainingSec ?? 60;
+
+      // total questions (если сервер не прислал — будет “?”)
+      if (shown && (shown.phase === 'question' || shown.phase === 'answer')) {
+        const n = (shown.qIndex ?? 0) + 1;
+        const total = totalQuestions > 0 ? totalQuestions : '?';
+        countTitle.textContent = `Вопрос ${n} из ${total}`;
+      } else {
+        countTitle.textContent = ' ';
+      }
+
+      // phase
+      if (!shown || shown.phase === 'waiting') {
+        phaseTitle.textContent = 'Ждите';
+        questionText.textContent = 'Игра скоро начнётся.';
+        setVisible(questionImg, false);
+        setVisible(answerBlock, false);
+        return;
+      }
+
+      if (shown.phase === 'break') {
+        phaseTitle.textContent = 'Перерыв';
+        questionText.textContent = 'Перерыв.';
+        setVisible(questionImg, false);
+        setVisible(answerBlock, false);
+        return;
+      }
+
+      if (shown.phase === 'table') {
+        phaseTitle.textContent = 'Таблица';
+        questionText.textContent = 'Таблица результатов (на экранах капитанов).';
+        setVisible(questionImg, false);
+        setVisible(answerBlock, false);
+        return;
+      }
+
+      // question/answer
+      const n = (shown.qIndex ?? 0) + 1;
+      phaseTitle.textContent = (shown.phase === 'question') ? `Вопрос ${n}` : `Ответ ${n}`;
+
+      // handout
+      questionImg.src = shown.handoutImage || '';
+      setVisible(questionImg, !!shown.handoutImage);
+
+      // question text
+      questionText.textContent = shown.questionText || '';
+
+      if (shown.phase === 'question') {
+        setVisible(answerBlock, false);
+      } else {
+        setVisible(answerBlock, true);
+        const a = shown.answerText || '';
+        const c = shown.commentText || '';
+        answerText.textContent = `Ответ: ${a}\n\nКомментарий: ${c}`;
+
+        commentImg.src = shown.commentImage || '';
+        setVisible(commentImg, !!shown.commentImage);
+      }
+    }
+
+    ws.onopen = () => { connBadge.textContent = 'Соединение: подключено'; };
+    ws.onerror = () => { connBadge.textContent = 'Соединение: ошибка'; };
+    ws.onclose = () => { connBadge.textContent = 'Соединение: закрыто'; };
+
+    ws.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      const { type, payload } = msg;
+
+      if (type === 'init_for_player') {
+        shown = payload.shown || { phase: 'waiting' };
+        timer = payload.timer || timer;
+        renderAll();
+      }
+
+      if (type === 'shown_update') {
+        shown = payload || { phase: 'waiting' };
+        renderAll();
+      }
+
+      if (type === 'timer_update') {
+        timer = payload || timer;
+        renderAll();
+      }
+
+      // Чтобы отображать “из M” — берём M из break_table (там есть questionsCount)
+      if (type === 'break_table') {
+        totalQuestions = payload?.questionsCount || totalQuestions;
+        renderAll();
+      }
+    };
+  </script>
+</body>
+</html>
