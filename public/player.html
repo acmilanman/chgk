@@ -81,6 +81,76 @@
       background: rgba(0,25,55,.25);
       margin: 10px 0 12px;
     }
+
+    /* Answer: center-only */
+    .centerAnswer{
+      border-top: none !important;
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      min-height: 55vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .centerAnswer .tvText{
+      text-align: center;
+      font-weight: 900;
+    }
+
+    /* Table (+/-) */
+    .tvTableWrap{
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,.14);
+    }
+    .tvTableScroll{
+      overflow: auto;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,25,55,.25);
+    }
+    .tvScoreTable{
+      border-collapse: collapse;
+      width: 100%;
+      min-width: max-content;
+    }
+    .tvScoreTable th,
+    .tvScoreTable td{
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      white-space: nowrap;
+    }
+    .tvScoreTable th{
+      position: sticky;
+      top: 0;
+      background: rgba(7,20,42,.92);
+      backdrop-filter: blur(6px);
+      text-align: center;
+      font-weight: 900;
+    }
+    .tvScoreTable td{ text-align: center; }
+    .tvScoreTable td.tName{ text-align: left; font-weight: 700; }
+
+    /* Sticky 1-2 columns */
+    .tvScoreTable th.st0,
+    .tvScoreTable td.st0{
+      position: sticky;
+      left: 0;
+      background: rgba(7,20,42,.92);
+      z-index: 2;
+      text-align: left;
+    }
+    .tvScoreTable th.st1,
+    .tvScoreTable td.st1{
+      position: sticky;
+      left: 52px;
+      background: rgba(7,20,42,.92);
+      z-index: 2;
+      text-align: left;
+    }
+    .tvScoreTable th.st0{ z-index: 4; }
+    .tvScoreTable th.st1{ z-index: 4; }
+
     .cornerLogos{
       position: fixed;
       right: 14px;
@@ -127,6 +197,15 @@
         <div id="answerText" class="tvText"></div>
         <img id="commentImg" class="tvImg hidden" alt="Картинка в комментарии">
       </div>
+
+      <div id="scoreWrap" class="tvTableWrap hidden">
+        <div class="tvTableScroll">
+          <table class="tvScoreTable">
+            <thead id="scoreHead"></thead>
+            <tbody id="scoreBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <div class="tvFooter">© Лига Естественного Интеллекта</div>
@@ -154,19 +233,68 @@
     const answerText = document.getElementById('answerText');
     const commentImg = document.getElementById('commentImg');
 
+    const scoreWrap = document.getElementById('scoreWrap');
+    const scoreHead = document.getElementById('scoreHead');
+    const scoreBody = document.getElementById('scoreBody');
+
     let shown = { phase: 'waiting' };
     let timer = { running: false, remainingSec: 60 };
     let totalQuestions = 0;
+
+    let lastTable = null;
 
     function setVisible(el, on) {
       el.classList.toggle('hidden', !on);
     }
 
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[ch]);
+    }
+
+    function renderScoreTableFull() {
+      if (!lastTable) return;
+
+      const qCount = lastTable.questionsCount ?? 0;
+
+      let h = '<tr>';
+      h += '<th class="st0">#</th>';
+      h += '<th class="st1">Команда</th>';
+      for (let i = 0; i < qCount; i++) h += `<th>${i + 1}</th>`;
+      h += '<th>Итог</th>';
+      h += '</tr>';
+      scoreHead.innerHTML = h;
+
+      scoreBody.innerHTML = '';
+      (lastTable.rows || []).forEach((r, idx) => {
+        const tr = document.createElement('tr');
+
+        let rowHtml = '';
+        rowHtml += `<td class="st0">${idx + 1}</td>`;
+        rowHtml += `<td class="st1 tName">${escapeHtml(r.name)}</td>`;
+
+        const per = Array.isArray(r.perQuestion) ? r.perQuestion : [];
+        for (let i = 0; i < qCount; i++) {
+          const v = per[i];
+          const s = v === true ? '+' : (v === false ? '−' : '');
+          rowHtml += `<td>${s}</td>`;
+        }
+
+        rowHtml += `<td style="font-weight:900;">${r.total ?? 0}</td>`;
+
+        tr.innerHTML = rowHtml;
+        scoreBody.appendChild(tr);
+      });
+    }
+
     function renderAll() {
-      // timer
       timerValue.textContent = timer.remainingSec ?? 60;
 
-      // total questions (если сервер не прислал — будет “?”)
       if (shown && (shown.phase === 'question' || shown.phase === 'answer')) {
         const n = (shown.qIndex ?? 0) + 1;
         const total = totalQuestions > 0 ? totalQuestions : '?';
@@ -175,84 +303,100 @@
         countTitle.textContent = ' ';
       }
 
-      // phase
+      setVisible(scoreWrap, false);
+      answerBlock.classList.remove('centerAnswer');
+
       if (!shown || shown.phase === 'waiting') {
         phaseTitle.textContent = 'Ждите';
         questionText.textContent = 'Игра скоро начнётся.';
         setVisible(questionImg, false);
         setVisible(answerBlock, false);
+        setVisible(commentImg, false);
         return;
       }
 
       if (shown.phase === 'break') {
         phaseTitle.textContent = 'Перерыв';
-        questionText.textContent = 'Перерыв.';
+        questionText.textContent = 'Пауза.';
         setVisible(questionImg, false);
         setVisible(answerBlock, false);
+        setVisible(commentImg, false);
         return;
       }
 
       if (shown.phase === 'table') {
-        phaseTitle.textContent = 'Таблица';
-        questionText.textContent = 'Таблица результатов (на экранах капитанов).';
+        phaseTitle.textContent = 'Таблица результатов';
+        questionText.textContent = '';
         setVisible(questionImg, false);
         setVisible(answerBlock, false);
+        setVisible(commentImg, false);
+        setVisible(scoreWrap, true);
+        renderScoreTableFull();
         return;
       }
 
-      // question/answer
       const n = (shown.qIndex ?? 0) + 1;
-      phaseTitle.textContent = (shown.phase === 'question') ? `Вопрос ${n}` : `Ответ ${n}`;
-
-      // handout
-      questionImg.src = shown.handoutImage || '';
-      setVisible(questionImg, !!shown.handoutImage);
-
-      // question text
-      questionText.textContent = shown.questionText || '';
+      phaseTitle.textContent = shown.phase === 'question' ? `Вопрос ${n}` : `Ответ ${n}`;
 
       if (shown.phase === 'question') {
-        setVisible(answerBlock, false);
-      } else {
-        setVisible(answerBlock, true);
-        const a = shown.answerText || '';
-        const c = shown.commentText || '';
-        answerText.textContent = `Ответ: ${a}\n\nКомментарий: ${c}`;
+        questionImg.src = shown.handoutImage;
+        setVisible(questionImg, !!shown.handoutImage);
 
-        commentImg.src = shown.commentImage || '';
-        setVisible(commentImg, !!shown.commentImage);
+        questionText.textContent = shown.questionText || '';
+        setVisible(answerBlock, false);
+        setVisible(commentImg, false);
+        return;
+      }
+
+      if (shown.phase === 'answer') {
+        setVisible(questionImg, false);
+        questionText.textContent = '';
+
+        setVisible(answerBlock, true);
+        answerBlock.classList.add('centerAnswer');
+
+        const a = shown.answerText || '';
+        answerText.textContent = `ОТВЕТ: ${a}`;
+
+        setVisible(commentImg, false);
+        return;
       }
     }
 
-    ws.onopen = () => { connBadge.textContent = 'Соединение: подключено'; };
-    ws.onerror = () => { connBadge.textContent = 'Соединение: ошибка'; };
-    ws.onclose = () => { connBadge.textContent = 'Соединение: закрыто'; };
+    ws.onopen = () => connBadge.textContent = 'Соединение: подключено';
+    ws.onerror = () => connBadge.textContent = 'Соединение: ошибка';
+    ws.onclose = () => connBadge.textContent = 'Соединение: отключено';
 
     ws.onmessage = (event) => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
-      const { type, payload } = msg;
+      const { type, payload } = msg || {};
 
       if (type === 'init_for_player') {
-        shown = payload.shown || { phase: 'waiting' };
-        timer = payload.timer || timer;
+        shown = payload?.shown || { phase: 'waiting' };
+        timer = payload?.timer || { running: false, remainingSec: 60 };
         renderAll();
+        return;
       }
 
       if (type === 'shown_update') {
         shown = payload || { phase: 'waiting' };
         renderAll();
+        return;
       }
 
       if (type === 'timer_update') {
-        timer = payload || timer;
+        timer = payload || { running: false, remainingSec: 60 };
         renderAll();
+        return;
       }
 
-      // Чтобы отображать “из M” — берём M из break_table (там есть questionsCount)
       if (type === 'break_table') {
-        totalQuestions = payload?.questionsCount || totalQuestions;
+        lastTable = payload;
+        totalQuestions = payload?.questionsCount || 0;
+        if (shown && shown.phase === 'table') renderScoreTableFull();
         renderAll();
+        return;
       }
     };
   </script>

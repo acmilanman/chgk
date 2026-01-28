@@ -60,7 +60,12 @@
 
       <div id="breakTableWrap" class="hidden" style="margin-top:12px;">
         <div class="hr"></div>
-        <h3 style="margin:0 0 10px 0;">Таблица результатов</h3>
+
+        <div class="row" style="justify-content:space-between; gap:10px; align-items:center; margin:0 0 10px 0;">
+          <h3 style="margin:0;">Таблица результатов</h3>
+          <button id="btnOpenFullTable" class="btn small secondary">+/- (в новой вкладке)</button>
+        </div>
+
         <table>
           <thead id="scoreHead"></thead>
           <tbody id="scoreBody"></tbody>
@@ -120,8 +125,8 @@
       <div class="row" style="justify-content:space-between; align-items:center; width:100%;">
         <div class="small">© Лига Естественного Интеллекта</div>
         <div class="row" style="gap:12px;">
-          <img src="/logo-profsouz.png" alt="Профсоюз" style="height:34px; opacity:.95;">
-          <img src="/logo-gazprom.png" alt="ПАО Газпром" style="height:34px; opacity:.95;">
+          <img src="logo-profsouz.png" alt="logo" style="height:34px; opacity:.95">
+          <img src="logo-gazprom.png" alt="logo" style="height:34px; opacity:.95">
         </div>
       </div>
     </div>
@@ -132,7 +137,6 @@
     const ws = new WebSocket(`${protocol}://${location.host}/?role=captain`);
 
     const connBadge = document.getElementById('connBadge');
-
     const btnLogout = document.getElementById('btnLogout');
 
     const teamBlock = document.getElementById('teamBlock');
@@ -147,6 +151,7 @@
     const breakBadge = document.getElementById('breakBadge');
     const breakHint = document.getElementById('breakHint');
     const breakTableWrap = document.getElementById('breakTableWrap');
+    const btnOpenFullTable = document.getElementById('btnOpenFullTable');
 
     const scoreHead = document.getElementById('scoreHead');
     const scoreBody = document.getElementById('scoreBody');
@@ -175,16 +180,18 @@
     let timer = { running: false, remainingSec: 60 };
 
     let lastQuestionIndex = null;
-
-    // главное изменение: можно отправлять много раз, но автоотправка на 0 — только если ни разу не отправляли
     let hasSentThisQuestion = false;
 
     let lastTable = null;
 
     function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, ch => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-      }[ch]));
+      return String(s ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[ch]);
     }
 
     function setVisible(el, on) {
@@ -197,7 +204,7 @@
     }
 
     function getOrCreateDeviceId() {
-      const key = 'chgk_device_id';
+      const key = 'chgkdeviceid';
       let id = localStorage.getItem(key);
       if (id) return id;
       const arr = new Uint8Array(16);
@@ -208,51 +215,103 @@
     }
     const deviceId = getOrCreateDeviceId();
 
-    function send(type, payload = {}) {
+    function send(type, payload) {
       if (ws.readyState !== WebSocket.OPEN) return;
       ws.send(JSON.stringify({ type, payload }));
     }
 
     function renderTeams() {
       const prev = teamSelect.value;
+
       teamSelect.innerHTML = '<option value="">-- Выберите --</option>';
-      teams.forEach(t => {
+      (teams || []).forEach(t => {
         const opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = `${t.name}${t.activeCaptain ? ' (занята)' : ''}`;
+        opt.value = String(t.id);
+        opt.textContent = t.name + (t.activeCaptain ? ' (занято)' : '');
         teamSelect.appendChild(opt);
       });
+
       if (prev) teamSelect.value = prev;
 
-      const t = teams.find(x => x.id === myTeamId);
+      const t = (teams || []).find(x => x.id === myTeamId);
       teamBadge.textContent = t ? `Команда: ${t.name}` : 'Команда: —';
     }
 
-    function renderTable() {
+    // КОМПАКТНАЯ ТАБЛИЦА: только итог
+    function renderTableCompact() {
       if (!lastTable) return;
-      const qCount = lastTable.questionsCount || 0;
 
-      let h = '<tr><th>Команда</th>';
-      for (let i = 0; i < qCount; i++) h += `<th>${i + 1}</th>`;
-      h += '<th>Итого</th></tr>';
-      scoreHead.innerHTML = h;
-
+      scoreHead.innerHTML = '<tr><th>Команда</th><th>Очки</th></tr>';
       scoreBody.innerHTML = '';
+
       (lastTable.rows || []).forEach(r => {
         const tr = document.createElement('tr');
-        let rowHtml = `<td>${escapeHtml(r.name)}</td>`;
-        for (let i = 0; i < qCount; i++) {
-          const v = (r.perQuestion || [])[i];
-          let s = '';
-          if (v === true) s = '+';
-          else if (v === false) s = '−';
-          rowHtml += `<td>${s}</td>`;
-        }
-        rowHtml += `<td>${r.total || 0}</td>`;
-        tr.innerHTML = rowHtml;
+        tr.innerHTML = `<td>${escapeHtml(r.name)}</td><td>${r.total ?? 0}</td>`;
         scoreBody.appendChild(tr);
       });
     }
+
+    // ПОЛНАЯ ТАБЛИЦА (+/-) — новая вкладка/окно
+    function openFullTableWindow() {
+      if (!lastTable) return;
+
+      const qCount = lastTable.questionsCount ?? 0;
+
+      const headCells = ['#', 'Команда']
+        .concat(Array.from({ length: qCount }, (_, i) => String(i + 1)))
+        .concat(['Итог'])
+        .map(x => `<th>${x}</th>`)
+        .join('');
+
+      const bodyRows = (lastTable.rows || []).map((r, idx) => {
+        const per = Array.isArray(r.perQuestion) ? r.perQuestion : [];
+        const cells = [];
+        cells.push(`<td>${idx + 1}</td>`);
+        cells.push(`<td style="white-space:nowrap">${escapeHtml(r.name)}</td>`);
+        for (let i = 0; i < qCount; i++) {
+          const v = per[i];
+          const s = v === true ? '+' : (v === false ? '−' : '');
+          cells.push(`<td style="text-align:center">${s}</td>`);
+        }
+        cells.push(`<td style="text-align:center; font-weight:900">${r.total ?? 0}</td>`);
+        return `<tr>${cells.join('')}</tr>`;
+      }).join('');
+
+      const html = `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Таблица (+/-)</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:14px; background:#07142a; color:#eaf2ff;}
+  .hint{opacity:.8; margin:0 0 10px 0;}
+  .wrap{overflow:auto; border:1px solid rgba(255,255,255,.18); border-radius:12px; background:rgba(0,25,55,.25);}
+  table{border-collapse:collapse; min-width:max-content; width:100%;}
+  th,td{border-bottom:1px solid rgba(255,255,255,.12); padding:10px 12px;}
+  th{position:sticky; top:0; background:rgba(7,20,42,.92); backdrop-filter: blur(6px); text-align:center;}
+  td:first-child, th:first-child{position:sticky; left:0; background:rgba(7,20,42,.92);}
+  td:nth-child(2), th:nth-child(2){position:sticky; left:52px; background:rgba(7,20,42,.92);}
+</style>
+</head>
+<body>
+  <p class="hint">Поверните экран горизонтально и масштабируйте как удобно.</p>
+  <div class="wrap">
+    <table>
+      <thead><tr>${headCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  </div>
+</body>
+</html>`;
+
+      const w = window.open('', '_blank');
+      if (!w) return;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
+    btnOpenFullTable.onclick = openFullTableWindow;
 
     function renderAll() {
       if (!myTeamId) {
@@ -287,29 +346,30 @@
           setVisible(breakTableWrap, false);
         } else {
           breakTitle.textContent = 'Таблица результатов';
-          breakBadge.textContent = 'Итоги';
-          breakHint.textContent = 'Промежуточные итоги.';
+          breakBadge.textContent = 'Очки';
+          breakHint.textContent = 'Кнопка “+/-” откроет подробную таблицу в новой вкладке.';
           setVisible(breakTableWrap, true);
-          renderTable();
+          renderTableCompact();
         }
         return;
       }
 
+      // game screen
       setVisible(teamBlock, false);
       setVisible(waitBlock, false);
       setVisible(breakBlock, false);
       setVisible(gameBlock, true);
 
       timerValue.textContent = timer.remainingSec ?? 60;
-      timerHint.textContent = timer.running ? 'идёт' : 'остановлен';
+      timerHint.textContent = timer.running ? 'Идёт отсчёт' : 'Пауза';
 
       const n = (shown.qIndex ?? 0) + 1;
 
-      questionImg.src = shown.handoutImage || '';
+      questionImg.src = shown.handoutImage;
       setVisible(questionImg, !!shown.handoutImage);
 
-      commentImg.src = shown.commentImage || '';
-      setVisible(commentImg, !!shown.commentImage && shown.phase === 'answer');
+      commentImg.src = shown.commentImage;
+      setVisible(commentImg, !!shown.commentImage);
 
       if (shown.phase === 'question') {
         if (lastQuestionIndex !== shown.qIndex) {
@@ -321,139 +381,141 @@
 
         phaseTitle.textContent = `Вопрос ${n}`;
         questionText.textContent = shown.questionText || '';
-
         setVisible(correctArea, false);
 
-        // можно отправлять только когда таймер идёт
         setAnswerEnabled(!!timer.running);
-
-        if (!timer.running) timerHint.textContent = 'ожидание старта';
+        if (!timer.running) timerHint.textContent = 'Ждите запуска таймера';
+        return;
       }
 
       if (shown.phase === 'answer') {
         phaseTitle.textContent = `Ответ ${n}`;
         questionText.textContent = shown.questionText || '';
-
         setVisible(correctArea, true);
-        correctText.textContent =
-          `Ответ: ${shown.answerText || ''}\n\nКомментарий: ${shown.commentText || ''}`;
+
+        const a = shown.answerText || '';
+        const c = shown.commentText || '';
+        correctText.textContent = c ? `${a}\n\n${c}` : a;
 
         setAnswerEnabled(false);
+        return;
       }
     }
 
     function sendAnswer(manual) {
       if (!myTeamId) return;
-      if (shown.phase !== 'question') return;
+      if (!shown || shown.phase !== 'question') return;
 
       const text = (answerInput.value || '').trim();
 
-      // ручная отправка разрешена только пока таймер идёт
       if (manual && !timer.running) {
-        answerMsg.innerHTML = '<div class="msg err">Таймер не идёт — отправлять нельзя.</div>';
+        answerMsg.innerHTML = '<div class="msg err">Нельзя отправить: таймер не запущен.</div>';
         return;
       }
 
-      // автоотправка на 0 — только если вообще ни разу не отправляли
       if (!manual && hasSentThisQuestion) return;
 
       send('captain_send_answer', { text });
       hasSentThisQuestion = true;
 
-      // сообщение показываем сразу, как ты хотел
-      const shownText = text ? `Ответ “${escapeHtml(text)}” принят.` : 'Пустой ответ отправлен.';
-      answerMsg.innerHTML = `<div class="msg ok">${shownText}</div>`;
+      const shownText = text ? escapeHtml(text) : '(пусто)';
+      answerMsg.innerHTML = `<div class="msg ok">Отправлено: ${shownText}</div>`;
     }
 
     ws.onopen = () => {
-      connBadge.textContent = 'соединение: подключено';
+      connBadge.textContent = 'Соединение: подключено';
       send('captain_hello', { deviceId });
     };
-    ws.onerror = () => { connBadge.textContent = 'соединение: ошибка'; };
-    ws.onclose = () => { connBadge.textContent = 'соединение: закрыто'; };
+    ws.onerror = () => connBadge.textContent = 'Соединение: ошибка';
+    ws.onclose = () => connBadge.textContent = 'Соединение: отключено';
 
     ws.onmessage = (event) => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
-      const { type, payload } = msg;
+      const { type, payload } = msg || {};
 
       if (type === 'init_for_captain') {
-        teams = payload.teams || [];
-        shown = payload.shown || { phase: 'waiting' };
-        timer = payload.timer || timer;
-
+        teams = payload?.teams || [];
+        shown = payload?.shown || { phase: 'waiting' };
+        timer = payload?.timer || { running:false, remainingSec:60 };
         renderTeams();
         renderAll();
+        return;
       }
 
       if (type === 'captain_session') {
-        const assigned = payload.assignedTeamId;
-        if (assigned) {
-          myTeamId = assigned;
-          renderTeams();
-          renderAll();
-        }
+        const assigned = payload?.assignedTeamId;
+        if (assigned) myTeamId = assigned;
+        renderTeams();
+        renderAll();
+        return;
       }
 
       if (type === 'teams_update') {
-        teams = payload.teams || [];
+        teams = payload?.teams || [];
         renderTeams();
+        return;
       }
 
       if (type === 'team_confirmed') {
-        myTeamId = payload.teamId;
+        myTeamId = payload?.teamId ?? null;
         teamMsg.innerHTML = '<div class="msg ok">Команда выбрана.</div>';
         renderTeams();
         renderAll();
+        return;
       }
 
       if (type === 'captain_logged_out') {
         myTeamId = null;
-        teamMsg.innerHTML = '<div class="msg ok">Вы вышли. Можно выбрать другую команду.</div>';
+        teamMsg.innerHTML = '<div class="msg ok">Вы вышли.</div>';
         renderTeams();
         renderAll();
+        return;
       }
 
       if (type === 'shown_update') {
         shown = payload || { phase: 'waiting' };
-
-        // при смене вопроса сбрасываем флаг отправок
         if (shown.phase === 'question' && lastQuestionIndex !== shown.qIndex) {
           hasSentThisQuestion = false;
+          lastQuestionIndex = shown.qIndex;
         }
-
         renderAll();
+        return;
       }
 
       if (type === 'timer_update') {
-        timer = payload || timer;
+        timer = payload || { running:false, remainingSec:60 };
 
-        // автоотправка при 0 (только если ни разу не отправляли)
-        if (shown.phase === 'question' && !timer.running && (timer.remainingSec === 0)) {
+        // если на вопросе таймер остановился и дошёл до 0 — блокируем и автофиксируем отправку
+        if (shown && shown.phase === 'question' && !timer.running && (timer.remainingSec === 0 || timer.remainingSec === '0')) {
           setAnswerEnabled(false);
           sendAnswer(false);
         }
 
         renderAll();
+        return;
       }
 
       if (type === 'break_table') {
         lastTable = payload;
-        if (shown.phase === 'table') renderTable();
+        if (shown && shown.phase === 'table') renderTableCompact();
+        return;
       }
 
       if (type === 'team_kicked') {
-        if (myTeamId === payload.teamId) {
+        if (myTeamId === payload?.teamId) {
           myTeamId = null;
-          teamMsg.innerHTML = '<div class="msg err">Вас кикнули. Выберите команду снова.</div>';
+          teamMsg.innerHTML = '<div class="msg err">Вас кикнули из команды. Выберите команду заново.</div>';
           renderTeams();
           renderAll();
         }
+        return;
       }
 
       if (type === 'error') {
         const m = payload?.message || 'Ошибка';
         teamMsg.innerHTML = `<div class="msg err">${escapeHtml(m)}</div>`;
+        return;
       }
     };
 
@@ -466,11 +528,12 @@
       send('captain_pick_team', { teamId: id });
     };
 
-    btnLogout.onclick = () => { send('captain_logout', {}); };
+    btnLogout.onclick = () => {
+      send('captain_logout', {});
+    };
 
-    btnSendAnswer.onclick = () => { sendAnswer(true); };
+    btnSendAnswer.onclick = () => sendAnswer(true);
 
-    // Enter отправляет, Shift+Enter — перенос строки
     answerInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
