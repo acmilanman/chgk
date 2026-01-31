@@ -1,4 +1,5 @@
 // server.js
+
 const express = require('express');
 const path = require('path');
 const { WebSocketServer } = require('ws');
@@ -8,6 +9,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/', (req, res) => res.redirect('/captain')); // корень ведёт в капитанку
+app.get('/captain', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'captain.html'))
+);
+app.get('/player', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'player.html'))
+);
+app.get('/admin', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'))
+);
+
 app.use(express.json({ limit: '5mb' }));
 
 const server = app.listen(PORT, () => {
@@ -29,15 +42,14 @@ const teamToDevice = new Map(); // teamId -> deviceId
 let game = {
   autoStartTimerOnQuestion: true,
   displayMode: 'normal', // normal | break | table
-  showStep: -1,          // -1 waiting, 0..2N-1 steps
-  questions: [],         // {text, answer, comment, handoutImage?, commentImage?}
-
-  teams: [],             // {id, name, activeCaptain:false}
+  showStep: -1, // -1 waiting, 0..2N-1 steps
+  questions: [], // {text, answer, comment, handoutImage?, commentImage?}
+  teams: [], // {id, name, activeCaptain:false}
 
   // rawAnswers[qIndex][teamId] = { text, verdict:null|true|false }
   rawAnswers: {},
 
-  // answerLog[qIndex][teamId] = [ {ts, text} ... ]  (история всех отправок)
+  // answerLog[qIndex][teamId] = [ {ts, text} ... ] (история всех отправок)
   answerLog: {},
 
   // results[qIndex][teamId] = true|false
@@ -52,7 +64,7 @@ let game = {
 };
 
 function safeSend(ws, obj) {
-  if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj));
+  if (ws.readyState === 1) ws.send(JSON.stringify(obj));
 }
 
 function broadcast(type, payload, role = null) {
@@ -65,7 +77,6 @@ function broadcast(type, payload, role = null) {
 function nowShown() {
   if (game.displayMode === 'break') return { phase: 'break' };
   if (game.displayMode === 'table') return { phase: 'table' };
-
   if (!game.questions.length || game.showStep < 0) return { phase: 'waiting' };
 
   const maxStep = game.questions.length * 2 - 1;
@@ -96,8 +107,8 @@ function nowShown() {
 function computeLabels() {
   const n = game.questions.length;
   const maxStep = n ? (n * 2 - 1) : -1;
-
   const shown = nowShown();
+
   let nextLabel = 'Показать …';
   let prevLabel = 'Назад';
 
@@ -119,7 +130,6 @@ function computeLabels() {
 
   nextLabel = labelForStep(nextStep);
   prevLabel = (prevStep < 0) ? 'Назад (Ждите)' : labelForStep(prevStep);
-
   return { nextLabel, prevLabel };
 }
 
@@ -174,15 +184,53 @@ setInterval(() => {
 
   const elapsed = Math.floor((Date.now() - t.startTime) / 1000);
   const remain = Math.max(0, t.durationSec - elapsed);
+
   if (remain !== t.remainingSec) {
     t.remainingSec = remain;
     broadcast('timer_update', t);
   }
+
   if (remain === 0) {
     t.running = false;
     broadcast('timer_update', t);
   }
 }, 250);
+
+// -------- Results helpers (NEW) --------
+
+// Сколько вопросов уже "сыграно" (то есть уже прошли ответ хотя бы до показа следующего вопроса).
+// По вашему требованию: пустыми должны быть только те вопросы, которые еще не отыграли.
+// Здесь считаем "отыгранным" любой вопрос с индексом < текущего вопроса в normal-режиме.
+function playedCount() {
+  // showStep: -1 wait, 0=Q1,1=A1,2=Q2,3=A2...
+  if (!game.questions.length || game.showStep < 0) return 0;
+
+  const maxStep = game.questions.length * 2 - 1;
+  const step = Math.max(0, Math.min(game.showStep, maxStep));
+  const qIndex = Math.floor(step / 2);
+
+  // "Отыграны" строго предыдущие вопросы: пока мы на вопросе/ответе N, вопросы < N уже завершены.
+  // qIndex здесь 0-based текущий. Значит отыграно qIndex.
+  return qIndex;
+}
+
+// Зафиксировать вердикты (true/false) в results для qIndex.
+// Если у команды нет выбранного вердикта (null/undefined), считаем это как "-" (false) — под ваш п.4.
+function commitVerdictsForQuestion(qIndex) {
+  if (qIndex == null || qIndex < 0 || qIndex >= game.questions.length) return;
+
+  if (!game.results[qIndex]) game.results[qIndex] = {};
+  const rawRow = game.rawAnswers[qIndex] || {};
+
+  game.teams.forEach(t => {
+    const a = rawRow[t.id];
+    const verdict =
+      (a && (a.verdict === true || a.verdict === false))
+        ? a.verdict
+        : false;
+    game.results[qIndex][t.id] = verdict;
+  });
+}
 
 // -------- Scores / ranking --------
 function getResult(qIndex, teamId) {
@@ -209,6 +257,7 @@ function compareTeamsByTieBreak(a, b) {
     const rb = (getResult(i, b.id) === true);
     if (ra !== rb) return rb ? 1 : -1;
   }
+
   return (a.name || '').localeCompare(b.name || '', 'ru');
 }
 
@@ -216,11 +265,21 @@ function buildScoresFull() {
   const qCount = game.questions.length;
   const teamsSorted = [...game.teams].sort(compareTeamsByTieBreak);
 
+  const played = playedCount(); // <-- NEW
+
   const rows = teamsSorted.map(t => {
     const perQuestion = [];
     for (let i = 0; i < qCount; i++) {
-      perQuestion.push(getResult(i, t.id));
+      const r = getResult(i, t.id); // true/false/undefined
+      if (i < played) {
+        // уже отыграно: нет "+" => "-"
+        perQuestion.push(r === true ? true : false);
+      } else {
+        // будущие: оставляем как есть (undefined => пусто)
+        perQuestion.push(r);
+      }
     }
+
     return {
       teamId: t.id,
       name: t.name,
@@ -275,6 +334,7 @@ function getAnswersListForAdmin(qIndex) {
 function sendAdminState(ws) {
   const shown = nowShown();
   const labels = computeLabels();
+
   safeSend(ws, {
     type: 'admin_state',
     payload: {
@@ -366,7 +426,9 @@ function resetQuestionsOnly() {
   game.results = {};
   game.displayMode = 'normal';
   game.showStep = -1;
+
   resetTimer();
+
   broadcast('shown_update', nowShown(), 'captain');
   broadcast('shown_update', nowShown(), 'player');
   broadcastScores();
@@ -379,7 +441,9 @@ function endGameProcess() {
   game.results = {};
   game.displayMode = 'normal';
   game.showStep = -1;
+
   resetTimer();
+
   broadcast('shown_update', nowShown(), 'captain');
   broadcast('shown_update', nowShown(), 'player');
   broadcastScores();
@@ -411,7 +475,6 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     if (ws.role === 'admin') clients.admin.delete(ws);
     if (ws.role === 'player') clients.players.delete(ws);
-
     if (ws.role === 'captain') {
       clients.captains.delete(ws);
       if (ws.teamId != null) {
@@ -476,6 +539,7 @@ wss.on('connection', (ws, req) => {
           safeSend(ws, { type: 'error', payload: { message: 'Нет deviceId. Перезагрузите страницу.' } });
           return;
         }
+
         const team = game.teams.find(t => t.id === teamId);
         if (!team) {
           safeSend(ws, { type: 'error', payload: { message: 'Команда не найдена.' } });
@@ -496,10 +560,9 @@ wss.on('connection', (ws, req) => {
 
         deviceToTeam.set(ws.deviceId, teamId);
         teamToDevice.set(teamId, ws.deviceId);
-
         ws.teamId = teamId;
-        team.activeCaptain = true;
 
+        team.activeCaptain = true;
         broadcast('teams_update', { teams: game.teams });
         safeSend(ws, { type: 'team_confirmed', payload: { teamId } });
         return;
@@ -517,9 +580,9 @@ wss.on('connection', (ws, req) => {
           teamToDevice.delete(teamId);
 
           ws.teamId = null;
-
           broadcast('teams_update', { teams: game.teams });
         }
+
         safeSend(ws, { type: 'captain_logged_out', payload: {} });
         return;
       }
@@ -542,7 +605,7 @@ wss.on('connection', (ws, req) => {
         // 1) логируем каждый отправленный вариант
         appendAnswerLog(qIndex, ws.teamId, text);
 
-        // 2) rawAnswers хранит "последний" (он и показывается админу как текущий)
+        // 2) rawAnswers хранит "последний"
         const rawRow = ensureRaw(qIndex);
         const prev = rawRow[ws.teamId] || { text: '', verdict: null };
         rawRow[ws.teamId] = { text, verdict: prev.verdict ?? null };
@@ -550,7 +613,6 @@ wss.on('connection', (ws, req) => {
         // обновить админам таблицу ответов
         broadcast('answers_update', { qIndex, answers: getAnswersListForAdmin(qIndex) }, 'admin');
 
-        // если админ в Results сейчас смотрит этот вопрос, он сможет запросить логи отдельным сообщением
         safeSend(ws, { type: 'answer_ok', payload: {} });
         return;
       }
@@ -570,6 +632,7 @@ wss.on('connection', (ws, req) => {
 
         broadcast('teams_update', { teams: game.teams });
         broadcastScores();
+
         safeSend(ws, { type: 'admin_ok', payload: { message: `Команды загружены: ${game.teams.length}` } });
         sendAdminState(ws);
         return;
@@ -605,6 +668,7 @@ wss.on('connection', (ws, req) => {
 
       if (type === 'admin_kick_team') {
         const teamId = Number(payload?.teamId);
+
         const dev = teamToDevice.get(teamId);
         if (dev) deviceToTeam.delete(dev);
         teamToDevice.delete(teamId);
@@ -635,6 +699,7 @@ wss.on('connection', (ws, req) => {
         }
 
         game.questions.push({ text: q, answer: a, comment: c, handoutImage: '', commentImage: '' });
+
         safeSend(ws, { type: 'admin_ok', payload: { message: `Вопрос добавлен. Всего: ${game.questions.length}` } });
 
         broadcast('questions_list', {
@@ -653,6 +718,7 @@ wss.on('connection', (ws, req) => {
 
       if (type === 'admin_load_questions') {
         const list = Array.isArray(payload?.questions) ? payload.questions : [];
+
         game.questions = list.map(q => ({
           text: String(q.text || '').trim(),
           answer: String(q.answer || '').trim(),
@@ -666,6 +732,7 @@ wss.on('connection', (ws, req) => {
         game.results = {};
         game.displayMode = 'normal';
         game.showStep = -1;
+
         resetTimer();
 
         broadcast('shown_update', nowShown(), 'captain');
@@ -718,11 +785,13 @@ wss.on('connection', (ws, req) => {
         if (idx < 0 || idx >= game.questions.length) return;
 
         game.questions.splice(idx, 1);
+
         game.rawAnswers = {};
         game.answerLog = {};
         game.results = {};
         game.displayMode = 'normal';
         game.showStep = -1;
+
         resetTimer();
 
         broadcast('shown_update', nowShown(), 'captain');
@@ -748,7 +817,6 @@ wss.on('connection', (ws, req) => {
         const idx = Number(payload?.index);
         const field = String(payload?.field || '');
         const dataUrl = String(payload?.dataUrl || '');
-
         const q = game.questions[idx];
         if (!q) return;
         if (field !== 'handoutImage' && field !== 'commentImage') return;
@@ -808,27 +876,36 @@ wss.on('connection', (ws, req) => {
       if (type === 'admin_reset_show') {
         game.displayMode = 'normal';
         game.showStep = -1;
+
         resetTimer();
+
         broadcast('shown_update', nowShown(), 'captain');
         broadcast('shown_update', nowShown(), 'player');
+
         sendAdminState(ws);
         return;
       }
 
       if (type === 'admin_break_simple') {
         game.displayMode = 'break';
+
         pauseTimer();
+
         broadcast('shown_update', nowShown(), 'captain');
         broadcast('shown_update', nowShown(), 'player');
+
         sendAdminState(ws);
         return;
       }
 
       if (type === 'admin_show_table') {
         game.displayMode = 'table';
+
         pauseTimer();
+
         broadcast('shown_update', nowShown(), 'captain');
         broadcast('shown_update', nowShown(), 'player');
+
         broadcastScores();
         sendAdminState(ws);
         return;
@@ -838,15 +915,25 @@ wss.on('connection', (ws, req) => {
         if (!game.questions.length) {
           game.showStep = -1;
           game.displayMode = 'normal';
+
           broadcast('shown_update', nowShown(), 'captain');
           broadcast('shown_update', nowShown(), 'player');
+
           sendAdminState(ws);
           return;
         }
 
         if (game.displayMode !== 'normal') game.displayMode = 'normal';
 
+        // --- NEW: при "вперед" фиксируем результаты текущего вопроса
+        const before = nowShown();
+        if (type === 'admin_show_next' && (before.phase === 'question' || before.phase === 'answer')) {
+          commitVerdictsForQuestion(before.qIndex);
+          broadcastScores();
+        }
+
         const maxStep = game.questions.length * 2 - 1;
+
         if (type === 'admin_show_next') game.showStep = Math.min(maxStep, game.showStep + 1);
         if (type === 'admin_show_prev') game.showStep = Math.max(-1, game.showStep - 1);
 
@@ -890,6 +977,7 @@ wss.on('connection', (ws, req) => {
         else if (verdict === false) v = false;
 
         rawRow[teamId] = { text: prev.text || '', verdict: v };
+
         broadcast('answers_update', { qIndex, answers: getAnswersListForAdmin(qIndex) }, 'admin');
         return;
       }
@@ -902,17 +990,9 @@ wss.on('connection', (ws, req) => {
         }
 
         const qIndex = shown.qIndex;
-        const rawRow = game.rawAnswers[qIndex] || {};
-
-        if (!game.results[qIndex]) game.results[qIndex] = {};
-
-        game.teams.forEach(t => {
-          const a = rawRow[t.id];
-          const verdict = (a && (a.verdict === true || a.verdict === false)) ? a.verdict : false;
-          game.results[qIndex][t.id] = verdict;
-        });
-
+        commitVerdictsForQuestion(qIndex); // (обновлено через общий хелпер)
         broadcastScores();
+
         safeSend(ws, { type: 'admin_ok', payload: { message: `Результаты по вопросу ${qIndex + 1} подтверждены.` } });
         return;
       }
@@ -922,11 +1002,13 @@ wss.on('connection', (ws, req) => {
       if (type === 'admin_results_question') {
         const qIndex = Number(payload?.qIndex);
         const rawRow = game.rawAnswers[qIndex] || {};
+
         const out = buildScoresFull().rows.map(r => {
           const teamId = r.teamId;
           const a = rawRow[teamId];
           const last = a ? (a.text || '') : '';
           const log = getAnswerLog(qIndex, teamId);
+
           return {
             teamId,
             teamName: r.name,
@@ -935,6 +1017,7 @@ wss.on('connection', (ws, req) => {
             answerLog: log // [{ts,text}...]
           };
         });
+
         safeSend(ws, { type: 'results_question', payload: { qIndex, rows: out } });
         return;
       }

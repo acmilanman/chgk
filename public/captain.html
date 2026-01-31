@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ЧГК — Капитан</title>
+  <title>Капитан</title>
   <link rel="stylesheet" href="/theme.css">
 </head>
 <body>
   <div class="wrap">
     <div class="brandbar">
       <div class="brand">
-        <div class="title">ЧГК</div>
-        <div class="subtitle">Экран капитана</div>
+        <div class="title">Экран капитана</div>
       </div>
       <div class="row">
         <div class="pill">
@@ -27,7 +26,7 @@
         <h2>Выберите команду</h2>
         <span class="badge">Одно устройство = одна команда</span>
       </div>
-      <div class="small">Для смены команды используйте “Выход” или попросите кик у админа.</div>
+      <div class="small">Для смены команды используйте "Выход" или обратитесь к администратору.</div>
       <div class="hr"></div>
 
       <select id="teamSelect">
@@ -201,6 +200,22 @@
     function setAnswerEnabled(on) {
       answerInput.disabled = !on;
       btnSendAnswer.disabled = !on;
+      
+      if (!on) {
+        answerInput.placeholder = 'ожидайте';
+        answerInput.style.color = '#888';
+        answerInput.style.backgroundColor = '#e0e0e0';
+        btnSendAnswer.style.opacity = '0.5';
+        btnSendAnswer.style.backgroundColor = '#cccccc';
+        btnSendAnswer.style.cursor = 'not-allowed';
+      } else {
+        answerInput.placeholder = 'Введите ответ...';
+        answerInput.style.color = '';
+        answerInput.style.backgroundColor = '';
+        btnSendAnswer.style.opacity = '';
+        btnSendAnswer.style.backgroundColor = '';
+        btnSendAnswer.style.cursor = '';
+      }
     }
 
     function getOrCreateDeviceId() {
@@ -289,9 +304,25 @@
   .wrap{overflow:auto; border:1px solid rgba(255,255,255,.18); border-radius:12px; background:rgba(0,25,55,.25);}
   table{border-collapse:collapse; min-width:max-content; width:100%;}
   th,td{border-bottom:1px solid rgba(255,255,255,.12); padding:10px 12px;}
-  th{position:sticky; top:0; background:rgba(7,20,42,.92); backdrop-filter: blur(6px); text-align:center;}
-  td:first-child, th:first-child{position:sticky; left:0; background:rgba(7,20,42,.92);}
-  td:nth-child(2), th:nth-child(2){position:sticky; left:52px; background:rgba(7,20,42,.92);}
+  
+  /* НЕПРОЗРАЧНЫЕ ЗАГОЛОВКИ */
+  th{position:sticky; top:0; background:#07142a !important; text-align:center;}
+  
+  /* НЕПРОЗРАЧНЫЕ ПЕРВЫЕ ДВА СТОЛБЦА */
+  td:first-child, th:first-child{
+    position:sticky; left:0; background:#07142a !important;
+    border-right: 1px solid rgba(255,255,255,.15);
+  }
+  td:nth-child(2), th:nth-child(2){
+    position:sticky; left:52px; background:#07142a !important;
+    border-right: 1px solid rgba(255,255,255,.15);
+  }
+  
+  /* Заголовки первых двух колонок тоже непрозрачны */
+  th:first-child, th:nth-child(2) {
+    z-index: 10;
+    background: #0a1e3d !important; /* Немного светлее для выделения */
+  }
 </style>
 </head>
 <body>
@@ -347,7 +378,7 @@
         } else {
           breakTitle.textContent = 'Таблица результатов';
           breakBadge.textContent = 'Очки';
-          breakHint.textContent = 'Кнопка “+/-” откроет подробную таблицу в новой вкладке.';
+          breakHint.textContent = 'Кнопка "+/-" откроет подробную таблицу в новой вкладке.';
           setVisible(breakTableWrap, true);
           renderTableCompact();
         }
@@ -383,8 +414,11 @@
         questionText.textContent = shown.questionText || '';
         setVisible(correctArea, false);
 
-        setAnswerEnabled(!!timer.running);
-        if (!timer.running) timerHint.textContent = 'Ждите запуска таймера';
+        // ЕСЛИ ТАЙМЕР НЕ ИДЁТ - "ОЖИДАЙТЕ" в placeholder
+        setAnswerEnabled(timer.running);
+        if (!timer.running) {
+          timerHint.textContent = 'Ждите запуска таймера';
+        }
         return;
       }
 
@@ -398,6 +432,8 @@
         correctText.textContent = c ? `${a}\n\n${c}` : a;
 
         setAnswerEnabled(false);
+        answerInput.value = '';
+        answerMsg.innerHTML = '';
         return;
       }
     }
@@ -408,6 +444,12 @@
 
       const text = (answerInput.value || '').trim();
 
+      // Если пользователь не ввел ответ и это ручная отправка
+      if (manual && !text) {
+        answerMsg.innerHTML = '<div class="msg err">Введите ответ.</div>';
+        return;
+      }
+
       if (manual && !timer.running) {
         answerMsg.innerHTML = '<div class="msg err">Нельзя отправить: таймер не запущен.</div>';
         return;
@@ -415,8 +457,12 @@
 
       if (!manual && hasSentThisQuestion) return;
 
+      // Отправляем ответ (может быть пустым при автоотправке)
       send('captain_send_answer', { text });
       hasSentThisQuestion = true;
+      
+      // ОЧИСТКА ПОЛЯ ВВОДА ПОСЛЕ ОТПРАВКИ
+      answerInput.value = '';
 
       const shownText = text ? escapeHtml(text) : '(пусто)';
       answerMsg.innerHTML = `<div class="msg ok">Отправлено: ${shownText}</div>`;
@@ -478,6 +524,13 @@
         if (shown.phase === 'question' && lastQuestionIndex !== shown.qIndex) {
           hasSentThisQuestion = false;
           lastQuestionIndex = shown.qIndex;
+          answerInput.value = '';
+          answerMsg.innerHTML = '';
+        }
+        // ОЧИСТКА ПРИ ПОКАЗЕ ОТВЕТА
+        if (shown.phase === 'answer') {
+          answerInput.value = '';
+          answerMsg.innerHTML = '';
         }
         renderAll();
         return;
@@ -489,6 +542,7 @@
         // если на вопросе таймер остановился и дошёл до 0 — блокируем и автофиксируем отправку
         if (shown && shown.phase === 'question' && !timer.running && (timer.remainingSec === 0 || timer.remainingSec === '0')) {
           setAnswerEnabled(false);
+          // Отправляем текущий ответ (даже если пустой)
           sendAnswer(false);
         }
 
@@ -505,7 +559,7 @@
       if (type === 'team_kicked') {
         if (myTeamId === payload?.teamId) {
           myTeamId = null;
-          teamMsg.innerHTML = '<div class="msg err">Вас кикнули из команды. Выберите команду заново.</div>';
+          teamMsg.innerHTML = '<div class="msg err">Администратор исключил Вас. Выберите команду заново.</div>';
           renderTeams();
           renderAll();
         }
@@ -515,6 +569,12 @@
       if (type === 'error') {
         const m = payload?.message || 'Ошибка';
         teamMsg.innerHTML = `<div class="msg err">${escapeHtml(m)}</div>`;
+        return;
+      }
+
+      if (type === 'answer_ok') {
+        // Ответ успешно принят сервером
+        answerMsg.innerHTML = '<div class="msg ok">Ответ получен сервером.</div>';
         return;
       }
     };
