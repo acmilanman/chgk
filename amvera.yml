@@ -1,0 +1,13 @@
+meta:
+  environment: node
+  toolchain:
+    name: npm
+    version: 18
+build:
+  artifacts:
+    '*': ./
+  script:
+    - npm install
+run:
+  command: npm start
+  containerPort: 3000
