@@ -1,9 +1,20 @@
+---
+version: null
 meta:
   environment: node
   toolchain:
     name: npm
     version: 18
+build:
+  skip: false
+  additionalCommands: null
+  artifacts:
+    '*': ./
 run:
+  persistenceMount: /data
+  scriptName: null
+  scriptArguments: null
+  nodeArguments: null
   command: npm start
   containerPort: 3000
-  persistenceMount: /data
+serviceType: compute
