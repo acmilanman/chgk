@@ -27,26 +27,13 @@ body{
   margin:0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   color: var(--ink);
-  background:
-    radial-gradient(1200px 600px at 50% 35%, rgba(193,240,251,.18), transparent 60%),
-    radial-gradient(900px 500px at 20% 60%, rgba(97,186,219,.22), transparent 65%),
-    linear-gradient(135deg, var(--bg1), var(--bg2) 45%, var(--bg3));
+  background: #07529d; /* сплошной тёмно-синий фон */
   overflow-x:hidden;
 }
 
-/* “Соты/сетка” поверх фона */
+/* Убираем псевдоэлемент с "волнами" */
 body::before{
-  content:"";
-  position:fixed;
-  inset:-40px;
-  pointer-events:none;
-  opacity:.22;
-  background-image:
-    linear-gradient(60deg, rgba(255,255,255,.14) 1px, transparent 1px),
-    linear-gradient(-60deg, rgba(255,255,255,.14) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(255,255,255,.10) 1px, transparent 1px);
-  background-size: 72px 72px, 72px 72px, 72px 72px;
-  filter: blur(.2px);
+  content: none;
 }
 
 .wrap{

@@ -3,65 +3,141 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ЧГК — Админ</title>
-  <link rel="stylesheet" href="/theme.css">
-
-  <!-- XLSX standalone (browser build) -->
+  <title>ЛЕИ — Админ</title>
+<!-- XLSX standalone (browser build) -->
   <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 
   <style>
-    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px;}
-    .tabBtn{
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(0,25,55,.25);
-      color:var(--ink);
-      padding:10px 14px;border-radius:999px;
-      cursor:pointer;box-shadow:var(--shadow2);
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #f5f9ff; color: #113355; margin: 0; padding: 0;
     }
-    .tabBtn.active{
-      background:linear-gradient(180deg, rgba(193,240,251,.95), rgba(97,186,219,.92));
-      color:#06263d;border-color:transparent;
-    }
-    .overlay{
-      position:fixed;inset:0;background:rgba(0,10,25,.62);
-      display:flex;align-items:center;justify-content:center;padding:16px;z-index:999;
-    }
-    .modal{
-      width:min(520px, 100%);border-radius:22px;padding:16px;
-      background:linear-gradient(180deg, rgba(0,40,75,.65), rgba(0,20,45,.55));
-      border:1px solid rgba(255,255,255,.18);box-shadow:var(--shadow);
-      backdrop-filter:blur(8px);
-    }
-    .modal h2{margin:0 0 6px 0;font-size:18px;}
-    .modal .muted{margin:0 0 10px 0;color:var(--muted);}
-    .hidden{display:none !important;}
-    .miniBtn{min-width:auto;}
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
 
-    /* results log styling */
-    .logBox{
-      margin-top:8px;
-      padding:8px 10px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(0,25,55,.18);
-      color: rgba(234,248,255,.88);
-      font-size: 12px;
-      line-height: 1.25;
-      max-height: 120px;
-      overflow: auto;
-      white-space: pre-wrap;
+    .brandbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 14px;
     }
-    .logLine{ opacity: .78; }
-    .logLine.last{
-      opacity: 1;
-      font-weight: 900;
-      color: #eaf8ff;
-      background: rgba(193,240,251,.10);
-      border-radius: 10px;
-      padding: 4px 6px;
-      display:block;
-      margin: 4px 0 0;
+    .brand { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand .title { font-size: 22px; font-weight: 700; color: #0a2a4a; }
+    .brand .subtitle { font-size: 13px; color: #5a6f8a; }
+
+    .badge, .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 30px;
+      background: white;
+      color: #113355; font-size: 12px; font-weight: 500;
     }
+    .badge { border: 1px solid #bcc9db; }
+    .pill { border: none; background: transparent; }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    @media (min-width: 900px) {
+      .grid.two { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
+    }
+
+    .card {
+      background: white; border: 1px solid #d9e2ef;
+      border-radius: 24px; padding: 16px 20px; margin-bottom: 14px;
+    }
+    .card .head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 8px;
+    }
+    .card .head h2, .card .head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+
+    .small { font-size: 13px; color: #5a6f8a; }
+    .hr { height: 1px; background: #d9e2ef; margin: 10px 0; }
+    .hidden { display: none !important; }
+    .miniBtn { min-width: auto; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 8px 16px; border-radius: 40px; font-weight: 600; font-size: 14px;
+      border: 1px solid transparent; cursor: pointer; transition: background 0.15s;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn.small { padding: 5px 12px; font-size: 12px; }
+    .btn.ok { background: #28a745; color: white; }
+    .btn.danger { background: #dc3545; color: white; }
+    .btn.secondary { background: white; color: #113355; border: 1px solid #bcc9db; }
+
+    textarea, select, input[type="password"], input[type="text"], input[type="file"] {
+      width: 100%; border: 1px solid #bcc9db; border-radius: 16px;
+      padding: 12px 16px; font-size: 14px; color: #113355;
+      background: white; outline: none;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    select { cursor: pointer; }
+
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 14px; }
+    .tabBtn {
+      padding: 8px 16px; border-radius: 40px;
+      border: 1px solid #bcc9db; background: white;
+      color: #113355; font-weight: 500; font-size: 14px; cursor: pointer;
+    }
+    .tabBtn.active { background: #1a5a9c; color: white; border-color: transparent; }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      border-radius: 14px; border: 1px solid #d9e2ef; overflow: hidden;
+    }
+    th, td {
+      padding: 10px 12px; text-align: center;
+      border-bottom: 1px solid #e8edf5; vertical-align: top;
+    }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { background: #eaf4ff; font-weight: 600; color: #113355; }
+    tbody tr:hover { background: #f2f7ff; }
+
+    .timer { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+    .timerCircle {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: #e2eaf5; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 24px; color: #1a5a9c;
+    }
+    .timerLabel { font-size: 13px; color: #5a6f8a; text-align: right; }
+
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,10,25,0.4);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; z-index: 999;
+    }
+    .modal {
+      width: min(480px, 100%); background: white; border-radius: 24px;
+      padding: 24px; border: 1px solid #d9e2ef;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    .modal h2 { margin: 0 0 6px; font-size: 18px; }
+    .modal .muted { font-size: 13px; color: #5a6f8a; margin-bottom: 12px; }
+
+    .msg.ok {
+      background: #d4edda; color: #155724;
+      padding: 8px 14px; border-radius: 30px; font-size: 13px;
+    }
+    .msg.err {
+      background: #f8d7da; color: #721c24;
+      padding: 8px 14px; border-radius: 30px; font-size: 13px;
+    }
+
+    .logBox {
+      margin-top: 6px; padding: 6px 10px; border-radius: 12px;
+      background: #f5f9ff; border: 1px solid #d9e2ef;
+      font-size: 12px; max-height: 120px; overflow: auto; white-space: pre-wrap;
+    }
+    .logLine { opacity: 0.7; }
+    .logLine.last {
+      opacity: 1; font-weight: 700; background: #eaf4ff;
+      border-radius: 8px; padding: 3px 6px; display: block; margin: 3px 0 0;
+    }
+
+    .warmup-check { width: auto; margin: 0 5px; }
+    .table-wrap { overflow-x: auto; }
+    .qText { white-space: pre-wrap; font-size: 18px; line-height: 1.35; }
   </style>
 </head>
 
@@ -83,7 +159,7 @@
   <div class="wrap">
     <div class="brandbar">
       <div class="brand">
-        <div class="title">ЧГК — Администрирование</div>
+        <div class="title">ЛЕИ — Администрирование</div>
         <div class="subtitle">Команды · Вопросы · Игра · Результаты</div>
       </div>
       <div class="pill"><span class="badge" id="statusBox">WebSocket: …</span></div>
@@ -94,6 +170,7 @@
       <button id="tabQuestions" class="tabBtn">Вопросы</button>
       <button id="tabGame" class="tabBtn">Игра</button>
       <button id="tabResults" class="tabBtn">Результаты</button>
+      <button id="tabSettings" class="tabBtn">Настройки</button>
     </div>
 
     <div id="msgBox"></div>
@@ -106,13 +183,13 @@
             <h2>Команды</h2>
             <span class="badge">Текст / XLSX</span>
           </div>
-          <div class="small">По одной команде на строку.</div>
+          <div class="small">По одной команде на строку. Можно отметить команды «вне зачёта» (галочка в таблице).</div>
           <div class="hr"></div>
 
           <textarea id="teamsInput" rows="10" placeholder="Команда 1&#10;Команда 2"></textarea>
 
           <div class="row" style="margin-top:12px;">
-            <button id="btnLoadTeams" class="btn ok miniBtn">Загрузить команды</button>
+            <button id="btnLoadTeams" class="btn ok miniBtn">Добавить команды</button>
             <button id="btnExportTeams" class="btn secondary miniBtn">Скачать teams.xlsx</button>
             <button id="btnImportTeams" class="btn secondary miniBtn">Загрузить teams.xlsx</button>
             <input id="fileTeams" type="file" accept=".xlsx" style="display:none;">
@@ -127,14 +204,16 @@
 
         <div class="card">
           <div class="head">
-            <h2>Онлайн / Кик</h2>
+            <h2>Онлайн / Кик / Вне зачёта</h2>
             <span class="badge">Сессии</span>
           </div>
-          <div class="small">Если “слетело” — кикни, чтобы капитан зашёл заново.</div>
+          <div class="small">Кик — выгнать капитана, удалить — убрать команду из списка.</div>
           <div class="hr"></div>
 
           <table>
-            <thead><tr><th>Команда</th><th>Онлайн</th><th></th></tr></thead>
+            <thead>
+              <tr><th>Команда</th><th>Онлайн</th><th>Вне зачёта</th><th>Действия</th></tr>
+            </thead>
             <tbody id="teamsTbody"></tbody>
           </table>
         </div>
@@ -148,7 +227,7 @@
           <h2>Добавить вопрос</h2>
           <span class="badge">По одному</span>
         </div>
-        <div class="small">Ответ: 1-я строка — ответ, ниже — комментарий.</div>
+        <div class="small">Ответ: 1-я строка — ответ, ниже — комментарий. Разминочный — вопрос не идёт в зачёт.</div>
         <div class="hr"></div>
 
         <div class="grid two">
@@ -161,12 +240,18 @@
             <textarea id="aText" rows="6" placeholder="Ответ&#10;Комментарий"></textarea>
           </div>
         </div>
+        <div class="row" style="margin-top:8px;">
+          <label><input type="checkbox" id="warmupCheckbox"> Разминочный вопрос</label>
+        </div>
 
         <div class="row" style="margin-top:12px;">
           <button id="btnAddQuestion" class="btn ok miniBtn">Добавить вопрос</button>
-          <button id="btnExportQuestions" class="btn secondary miniBtn">Скачать questions.xlsx</button>
-          <button id="btnImportQuestions" class="btn secondary miniBtn">Загрузить questions.xlsx</button>
+          <button id="btnExportQuestions" class="btn secondary miniBtn">Скачать XLSX</button>
+          <button id="btnImportQuestions" class="btn secondary miniBtn">Загрузить XLSX</button>
           <input id="fileQuestions" type="file" accept=".xlsx" style="display:none;">
+          <button id="btnExportPackage" class="btn secondary miniBtn">Скачать ZIP (с картинками)</button>
+          <button id="btnImportPackage" class="btn secondary miniBtn">Загрузить ZIP</button>
+          <input id="filePackage" type="file" accept=".zip" style="display:none;">
           <button id="btnResetQuestions" class="btn danger miniBtn">Сбросить вопросы</button>
         </div>
       </div>
@@ -181,9 +266,7 @@
 
         <table>
           <thead>
-            <tr>
-              <th>#</th><th>Вопрос</th><th>Ответ</th><th>Комментарий</th><th>Картинки</th><th></th>
-            </tr>
+            <tr><th>#</th><th>Разм.</th><th>Вопрос</th><th>Ответ</th><th>Комментарий</th><th>Картинки</th><th></th></tr>
           </thead>
           <tbody id="questionsTbody"></tbody>
         </table>
@@ -202,10 +285,20 @@
             <span class="badge" id="shownBadge">Ждите</span>
           </div>
 
-          <label class="pill" style="justify-content:space-between; width:100%; margin-bottom:12px;">
-            <span class="small">Автостарт таймера при показе вопроса</span>
-            <input type="checkbox" id="autoStartChk" />
-          </label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:12px;">
+            <label class="pill" style="flex:1; justify-content:space-between;">
+              <span class="small">Автостарт таймера при показе вопроса</span>
+              <input type="checkbox" id="autoStartChk" />
+            </label>
+            <div style="margin-left: 10px;">
+              <span class="small">Овертайм: </span>
+              <select id="overtimeSelect" style="width: auto; padding: 6px 12px;">
+                <option value="0">0 сек</option>
+                <option value="10">10 сек</option>
+                <option value="15">15 сек</option>
+              </select>
+            </div>
+          </div>
 
           <div class="card" style="padding:12px;">
             <div class="head">
@@ -213,15 +306,6 @@
               <span class="badge" id="shownTitle">Ждите</span>
             </div>
             <div id="shownBody" class="small" style="white-space: pre-wrap;"></div>
-
-            <div class="row" style="margin-top:10px;">
-              <button id="btnGameHandout" class="btn secondary miniBtn">Раздатка…</button>
-              <button id="btnGameCommentImg" class="btn secondary miniBtn">Картинка комментария…</button>
-              <button id="btnGameClearHandout" class="btn secondary miniBtn">Убрать раздатку</button>
-              <button id="btnGameClearCommentImg" class="btn secondary miniBtn">Убрать карт.комм</button>
-              <input id="fileGameHandout" type="file" accept="image/*" style="display:none;">
-              <input id="fileGameCommentImg" type="file" accept="image/*" style="display:none;">
-            </div>
           </div>
 
           <div class="row" style="margin-top:12px;">
@@ -281,6 +365,19 @@
           <tbody id="scoreBody"></tbody>
         </table>
       </div>
+
+      <!-- Экспорт результатов -->
+      <div class="card">
+        <div class="head">
+          <h2>Экспорт результатов</h2>
+          <span class="badge">XLSX</span>
+        </div>
+        <div class="small">Скачать итоговую таблицу с фильтрами по столбцам.</div>
+        <div class="hr"></div>
+        <div class="row">
+          <button id="btnExportResults" class="btn secondary miniBtn">Скачать results.xlsx</button>
+        </div>
+      </div>
     </div>
 
     <!-- TAB: Results -->
@@ -312,6 +409,105 @@
       </div>
     </div>
 
+    <!-- TAB: Settings -->
+    <div id="pageSettings" class="hidden">
+      <div class="card">
+        <div class="head">
+          <h2>Сохранение / восстановление игры</h2>
+          <span class="badge">JSON</span>
+        </div>
+        <div class="small">Сохраните текущее состояние (команды, вопросы, результаты) в файл.</div>
+        <div class="hr"></div>
+        <div class="row">
+          <button id="btnSaveGame" class="btn secondary miniBtn">Сохранить игру</button>
+          <button id="btnLoadGame" class="btn secondary miniBtn">Загрузить игру</button>
+          <input id="fileGameLoad" type="file" accept=".json" style="display:none;">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <h2>Звуковые оповещения</h2>
+        </div>
+        <div class="small">Настройка звуков таймера и загрузка своих MP3.</div>
+        <div class="hr"></div>
+        
+        <!-- Блок загрузки звуков -->
+        <div class="row">
+          <label style="min-width: 140px;">Звук окончания 60 сек:</label>
+          <input type="file" id="soundBeepInput" accept="audio/mpeg" style="width: auto;">
+          <button id="btnUploadBeep" class="btn small secondary">Загрузить</button>
+          <button id="btnTestBeep" class="btn small secondary">Тест</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <label style="min-width: 140px;">Звук овертайма (гонг):</label>
+          <input type="file" id="soundGongInput" accept="audio/mpeg" style="width: auto;">
+          <button id="btnUploadGong" class="btn small secondary">Загрузить</button>
+          <button id="btnTestGong" class="btn small secondary">Тест</button>
+        </div>
+        
+        <div class="hr"></div>
+        
+        <div class="row">
+          <label><input type="checkbox" id="sound60SecCheckbox"> Включить звук при окончании 60 секунд</label>
+          <label><input type="checkbox" id="soundOvertimeCheckbox"> Включить звук при окончании овертайма (гонг)</label>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row">
+          <label><input type="checkbox" id="soundCaptainsCheckbox"> 🔊 Включить звук для капитанов</label>
+        </div>
+        <div class="row" style="margin-top:4px;">
+          <label><input type="checkbox" id="soundScreensCheckbox"> 🔊 Включить звук для экранов</label>
+        </div>
+        
+        <div class="hr"></div>
+        
+        <div class="row">
+          <button id="btnUnlockAudio" class="btn secondary miniBtn">🔓 Разрешить звук</button>
+          <span class="small">Нажмите один раз, чтобы браузер разрешил звук.</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <h2>Смена пароля</h2>
+          <span class="badge">администратор</span>
+        </div>
+        <div class="small">Пароль хранится на сервере и сохраняется после перезапуска.</div>
+        <div class="hr"></div>
+        <div class="row">
+          <button id="btnChangePassword" class="btn secondary miniBtn">Сменить пароль</button>
+          <button id="btnShowLogs" class="btn secondary miniBtn">Показать логи входов</button>
+        </div>
+        <div id="logsTableContainer" style="margin-top:12px; display:none;">
+          <table>
+            <thead>
+              <tr><th>Дата и время</th><th>IP-адрес</th><th>Устройство / Браузер</th><th>Результат</th></tr>
+            </thead>
+            <tbody id="logsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Модальное окно смены пароля -->
+  <div id="changePasswordModal" class="overlay hidden">
+    <div class="modal">
+      <h2>Смена пароля администратора</h2>
+      <div class="muted">Введите старый и новый пароль.</div>
+      <input id="oldPassword" type="password" placeholder="Старый пароль">
+      <input id="newPassword" type="password" placeholder="Новый пароль (мин. 4 символа)" style="margin-top:10px;">
+      <input id="confirmPassword" type="password" placeholder="Подтвердите новый пароль" style="margin-top:10px;">
+      <div id="changePasswordMsg" style="margin-top:10px;"></div>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnChangePasswordSubmit" class="btn ok miniBtn">Изменить</button>
+        <button id="btnChangePasswordCancel" class="btn secondary miniBtn">Отмена</button>
+      </div>
+    </div>
   </div>
 
   <script src="/admin.js"></script>

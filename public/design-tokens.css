@@ -1,0 +1,23 @@
+/* Light design tokens for admin UI to align with captain/player themes */
+:root {
+  --bg: #f7fbff;             /* page background */
+  --surface: #ffffff;         /* card surfaces */
+  --text: #113355;            /* primary text */
+  --muted: #5a6f8a;           /* muted text */
+  --primary: #1a5a9c;         /* primary action */
+  --secondary: #e6f0ff;       /* secondary action/background */
+  --surface-border: #d9e2ef;  /* borders between surfaces */
+  --badge: #eaf4ff;           /* badges */
+  --shadow: 0 2px 8px rgba(0,0,0,.08);
+  --radius-card: 24px;
+}
+
+/* Optional dark mode placeholder (not enabled by default) */
+:root[data-theme="dark"] {
+  --bg: #0f1115;
+  --surface: #171a20;
+  --text: #e8eeff;
+  --muted: #a3b0c4;
+  --surface-border: #2a2f3a;
+  --badge: #1b2530;
+}

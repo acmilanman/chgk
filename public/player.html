@@ -3,402 +3,659 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Основной кран</title>
-  <link rel="stylesheet" href="/theme.css">
+  <title>Основной экран</title>
   <style>
-    /* TV layout overrides */
-    .tvWrap{
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f9ff;
+      --surface: #ffffff;
+      --surface-border: #d9e2ef;
+      --text: #113355;
+      --text-secondary: #0a2a4a;
+      --muted: #5a6f8a;
+      --timer-bg: #e2eaf5;
+      --timer-color: #1a5a9c;
+      --timer-overtime-bg: #ff6b6b;
+      --timer-overtime-color: white;
+      --table-th-bg: #e2eaf5;
+      --table-border: #d9e2ef;
+      --badge-bg: white;
+      --badge-border: #bcc9db;
+      --btn-bg: white;
+      --btn-border: #bcc9db;
+      --btn-color: #113355;
+      --btn-hover: #e2eaf5;
+      --topbar-bg: white;
+      --card-bg: white;
+      --img-border: #d9e2ef;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-border: #30363d;
+      --text: #e6edf3;
+      --text-secondary: #c9d1d9;
+      --muted: #8b949e;
+      --timer-bg: #21262d;
+      --timer-color: #58a6ff;
+      --timer-overtime-bg: #da3633;
+      --timer-overtime-color: white;
+      --table-th-bg: #21262d;
+      --table-border: #30363d;
+      --badge-bg: #21262d;
+      --badge-border: #30363d;
+      --btn-bg: #21262d;
+      --btn-border: #30363d;
+      --btn-color: #e6edf3;
+      --btn-hover: #30363d;
+      --topbar-bg: #161b22;
+      --card-bg: #161b22;
+      --img-border: #30363d;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      transition: background 0.3s, color 0.3s;
+    }
+    .tvWrap {
       max-width: 1400px;
       margin: 0 auto;
-      padding: 22px 18px 28px;
+      padding: 16px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
-    .tvTop{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:14px;
-      margin-bottom: 12px;
+    .tvWrap:-webkit-full-screen {
+      max-width: 100%;
+      padding: 20px;
+      width: 100%;
     }
-    .tvMeta{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
+    .tvWrap:fullscreen {
+      max-width: 100%;
+      padding: 20px;
+      width: 100%;
     }
-    .tvMeta .line{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
+    .tvTop {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      background: var(--topbar-bg);
+      border-radius: 16px;
+      padding: 12px 20px;
+      border: 1px solid var(--surface-border);
+      transition: background 0.3s, border-color 0.3s;
     }
-    .tvPhase{
-      font-size: clamp(18px, 2.2vw, 28px);
-      font-weight: 900;
-      letter-spacing: .2px;
+    .tvPhase {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-secondary);
     }
-    .tvCount{
-      font-size: clamp(14px, 1.4vw, 18px);
+    .tvCount {
+      font-size: 14px;
       color: var(--muted);
+      margin-top: 4px;
     }
-    .tvTimer{
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
-    .tvTimerNum{
-      width: 76px;
-      height: 76px;
-      border-radius: 999px;
-      border: 2px solid rgba(193,240,251,.55);
-      background:
-        radial-gradient(circle at 35% 30%, rgba(193,240,251,.22), transparent 55%),
-        rgba(0,30,70,.30);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow: var(--shadow2);
-      font-weight: 900;
+    .tvTimerNum {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--timer-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 28px;
+      font-weight: 600;
+      color: var(--timer-color);
+      transition: background 0.2s, color 0.2s;
     }
-    .tvText{
-      font-size: clamp(28px, 3.2vw, 54px);
-      line-height: 1.18;
+    .tvTimerNum.overtime {
+      background: var(--timer-overtime-bg);
+      color: var(--timer-overtime-color);
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid var(--surface-border);
+      margin-bottom: 20px;
+      flex: 1;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .split {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .image-col {
+      flex: 0 0 40%;
+      max-width: 500px;
+    }
+    .text-col {
+      flex: 1 1 50%;
+    }
+    .tvImg {
+      width: 100%;
+      max-height: 60vh;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid var(--img-border);
+    }
+    .tvText {
+      font-size: clamp(28px, 3vw, 48px);
+      line-height: 1.3;
       white-space: pre-wrap;
     }
-    .tvAnswer{
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid rgba(255,255,255,.14);
+    .tvAnswer {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--surface-border);
     }
-    .tvAnswer .tvText{
-      font-size: clamp(24px, 2.7vw, 46px);
-    }
-    .tvImg{
-      width:100%;
-      max-height: 46vh;
-      object-fit: contain;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,25,55,.25);
-      margin: 10px 0 12px;
-    }
-
-    /* Answer: center-only */
-    .centerAnswer{
-      border-top: none !important;
-      margin-top: 0 !important;
-      padding-top: 0 !important;
-      min-height: 55vh;
+    .centerAnswer {
+      border-top: none;
+      min-height: 50vh;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .centerAnswer .tvText{
+    .centerAnswer .tvText {
       text-align: center;
-      font-weight: 900;
+      font-weight: 600;
     }
-
-    /* Table (+/-) */
-    .tvTableWrap{
-      margin-top: 10px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255,255,255,.14);
+    .tvTableWrap {
+      margin-top: 20px;
     }
-    .tvTableScroll{
-      overflow: auto;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,25,55,.25);
-    }
-    .tvScoreTable{
-      border-collapse: collapse;
+    .tvScoreTable {
       width: 100%;
-      min-width: max-content;
+      border-collapse: collapse;
     }
     .tvScoreTable th,
-    .tvScoreTable td{
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,.12);
+    .tvScoreTable td {
+      border: 1px solid var(--table-border);
+      padding: 10px;
+      text-align: center;
+    }
+    .tvScoreTable th {
+      background: var(--table-th-bg);
+      font-weight: 600;
+    }
+    .tvScoreTable tr.exhibition-row {
+      font-style: italic;
+    }
+    .hidden { display: none !important; }
+    .bottom-bar {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid var(--surface-border);
+    }
+    .bottom-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 30px;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 30px;
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      color: var(--btn-color);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
       white-space: nowrap;
     }
-    .tvScoreTable th{
-      position: sticky;
-      top: 0;
-      background: rgba(7,20,42,.92);
-      backdrop-filter: blur(6px);
-      text-align: center;
-      font-weight: 900;
+    .btn-icon:hover {
+      background: var(--btn-hover);
     }
-    .tvScoreTable td{ text-align: center; }
-    .tvScoreTable td.tName{ text-align: left; font-weight: 700; }
-
-    /* Sticky 1-2 columns */
-    .tvScoreTable th.st0,
-    .tvScoreTable td.st0{
-      position: sticky;
-      left: 0;
-      background: rgba(7,20,42,.92);
-      z-index: 2;
-      text-align: left;
+    .btn-icon.sound-on {
+      background: var(--btn-hover);
     }
-    .tvScoreTable th.st1,
-    .tvScoreTable td.st1{
-      position: sticky;
-      left: 52px;
-      background: rgba(7,20,42,.92);
-      z-index: 2;
-      text-align: left;
-    }
-    .tvScoreTable th.st0{ z-index: 4; }
-    .tvScoreTable th.st1{ z-index: 4; }
-
-    .cornerLogos{
-      position: fixed;
-      right: 14px;
-      bottom: 14px;
-      z-index: 10;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      padding: 8px 10px;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,25,55,.25);
-      backdrop-filter: blur(6px);
-    }
-    .cornerLogos img{ height: 32px; opacity: .95; }
-    .tvFooter{
-      margin-top: 10px;
+    .copyright {
       color: var(--muted);
-      font-size: 14px;
+      font-size: 13px;
+    }
+    .logos {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .logos img {
+      height: 30px;
+    }
+    @media (max-width: 700px) {
+      .split { flex-direction: column; }
+      .image-col { max-width: 100%; }
+      .bottom-bar { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
-  <div class="tvWrap">
+  <div class="tvWrap" id="tvWrap">
     <div class="tvTop">
-      <div class="tvMeta">
-        <div class="line">
-          <div class="tvPhase" id="phaseTitle">Ждите</div>
-          <div class="badge" id="connBadge">WebSocket: …</div>
-        </div>
+      <div>
+        <div class="tvPhase" id="phaseTitle">Ждите</div>
         <div class="tvCount" id="countTitle">—</div>
       </div>
-
-      <div class="tvTimer" aria-label="Таймер">
-        <div class="tvTimerNum" id="timerValue">60</div>
+      <div class="tvTimer">
+        <div class="tvTimerNum" id="timerValueDiv">60</div>
       </div>
     </div>
 
     <div class="card">
-      <img id="questionImg" class="tvImg hidden" alt="Раздатка">
-      <div id="questionText" class="tvText"></div>
-
-      <div id="answerBlock" class="tvAnswer hidden">
-        <div id="answerText" class="tvText"></div>
-        <img id="commentImg" class="tvImg hidden" alt="Картинка в комментарии">
+      <div class="split">
+        <div class="image-col" id="imageColumn">
+          <img id="questionImg" class="tvImg hidden" alt="Раздатка">
+          <img id="commentImg" class="tvImg hidden" alt="Картинка комментария">
+        </div>
+        <div class="text-col">
+          <div id="questionText" class="tvText"></div>
+          <div id="answerBlock" class="tvAnswer hidden">
+            <div id="answerText" class="tvText"></div>
+          </div>
+        </div>
       </div>
 
       <div id="scoreWrap" class="tvTableWrap hidden">
-        <div class="tvTableScroll">
-          <table class="tvScoreTable">
-            <thead id="scoreHead"></thead>
-            <tbody id="scoreBody"></tbody>
-          </table>
-        </div>
+        <table class="tvScoreTable">
+          <thead id="scoreHead"></thead>
+          <tbody id="scoreBody"></tbody>
+        </table>
       </div>
     </div>
 
-    <div class="tvFooter">© Лига Естественного Интеллекта</div>
-  </div>
-
-  <!-- corner logos -->
-  <div class="cornerLogos">
-    <img src="/logo-profsouz.png" alt="Профсоюз">
-    <img src="/logo-gazprom.png" alt="ПАО Газпром">
+    <div class="bottom-bar">
+      <div class="bottom-left">
+        <span class="badge" id="connBadge">WebSocket: …</span>
+        <span id="soundControls" style="display:none;">
+          <button class="btn-icon" id="soundToggle">🔇 Звук выкл</button>
+          <button id="btnUnlockAudio" class="btn-icon">🔓 Разрешить звук</button>
+        </span>
+        <button class="btn-icon" id="themeToggle">🌙 Тёмная тема</button>
+        <button class="btn-icon" id="fullscreenToggle">⛶ На весь экран</button>
+        <span class="copyright">© Лига Естественного Интеллекта</span>
+      </div>
+      <div class="logos">
+        <img src="/logo-profsouz.png" alt="Профсоюз">
+        <img src="/logo-gazprom.png" alt="ПАО Газпром">
+      </div>
+    </div>
   </div>
 
   <script>
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${protocol}://${location.host}/?role=player`);
+    (function() {
+      let ws = null;
+      let reconnectAttempts = 0;
+      const maxReconnectDelay = 30000;
 
-    const connBadge = document.getElementById('connBadge');
-    const phaseTitle = document.getElementById('phaseTitle');
-    const countTitle = document.getElementById('countTitle');
-    const timerValue = document.getElementById('timerValue');
+      const connBadge = document.getElementById('connBadge');
+      const phaseTitle = document.getElementById('phaseTitle');
+      const countTitle = document.getElementById('countTitle');
+      const timerValueDiv = document.getElementById('timerValueDiv');
+      const questionImg = document.getElementById('questionImg');
+      const commentImg = document.getElementById('commentImg');
+      const questionText = document.getElementById('questionText');
+      const answerBlock = document.getElementById('answerBlock');
+      const answerText = document.getElementById('answerText');
+      const imageColumn = document.getElementById('imageColumn');
+      const scoreWrap = document.getElementById('scoreWrap');
+      const scoreHead = document.getElementById('scoreHead');
+      const scoreBody = document.getElementById('scoreBody');
+      const soundToggle = document.getElementById('soundToggle');
+      const btnUnlockAudio = document.getElementById('btnUnlockAudio');
+      const themeToggle = document.getElementById('themeToggle');
+      const fullscreenToggle = document.getElementById('fullscreenToggle');
+      const tvWrap = document.getElementById('tvWrap');
 
-    const questionImg = document.getElementById('questionImg');
-    const questionText = document.getElementById('questionText');
+      let shown = { phase: 'waiting' };
+      let timer = { running: false, remainingSec: 60, overtimeActive: false };
+      let totalQuestions = 0;
+      let lastTable = null;
+      let lastQuestionIndex = null;
 
-    const answerBlock = document.getElementById('answerBlock');
-    const answerText = document.getElementById('answerText');
-    const commentImg = document.getElementById('commentImg');
+      let soundsData = { beep: null, gong: null };
+      let soundAllowed = false;
+      let soundEnabled = false;
+      let audioUnlocked = false;
+      let warnedAt0 = false;
+      let gongPlayed = false;
+      const soundControls = document.getElementById('soundControls');
 
-    const scoreWrap = document.getElementById('scoreWrap');
-    const scoreHead = document.getElementById('scoreHead');
-    const scoreBody = document.getElementById('scoreBody');
+      // ---- Theme ----
+      let darkTheme = localStorage.getItem('playerTheme') === 'dark';
 
-    let shown = { phase: 'waiting' };
-    let timer = { running: false, remainingSec: 60 };
-    let totalQuestions = 0;
-
-    let lastTable = null;
-
-    function setVisible(el, on) {
-      el.classList.toggle('hidden', !on);
-    }
-
-    function escapeHtml(s) {
-      return String(s ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      })[ch]);
-    }
-
-    function renderScoreTableFull() {
-      if (!lastTable) return;
-
-      const qCount = lastTable.questionsCount ?? 0;
-
-      let h = '<tr>';
-      h += '<th class="st0">#</th>';
-      h += '<th class="st1">Команда</th>';
-      for (let i = 0; i < qCount; i++) h += `<th>${i + 1}</th>`;
-      h += '<th>Итог</th>';
-      h += '</tr>';
-      scoreHead.innerHTML = h;
-
-      scoreBody.innerHTML = '';
-      (lastTable.rows || []).forEach((r, idx) => {
-        const tr = document.createElement('tr');
-
-        let rowHtml = '';
-        rowHtml += `<td class="st0">${idx + 1}</td>`;
-        rowHtml += `<td class="st1 tName">${escapeHtml(r.name)}</td>`;
-
-        const per = Array.isArray(r.perQuestion) ? r.perQuestion : [];
-        for (let i = 0; i < qCount; i++) {
-          const v = per[i];
-          const s = v === true ? '+' : (v === false ? '−' : '');
-          rowHtml += `<td>${s}</td>`;
+      function applyTheme() {
+        if (darkTheme) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          themeToggle.textContent = '☀️ Светлая тема';
+          if (connBadge) connBadge.style.background = 'var(--badge-bg)';
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          themeToggle.textContent = '🌙 Тёмная тема';
         }
+        localStorage.setItem('playerTheme', darkTheme ? 'dark' : 'light');
+      }
 
-        rowHtml += `<td style="font-weight:900;">${r.total ?? 0}</td>`;
+      // ---- Fullscreen ----
+      function isFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement);
+      }
 
-        tr.innerHTML = rowHtml;
-        scoreBody.appendChild(tr);
+      function toggleFullscreen() {
+        if (!isFullscreen()) {
+          const el = document.documentElement;
+          if (el.requestFullscreen) {
+            el.requestFullscreen().catch(() => {});
+          } else if (el.webkitRequestFullscreen) {
+            el.webkitRequestFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          } else if ( document.webkitExitFullscreen ) {
+            document.webkitExitFullscreen();
+          }
+        }
+      }
+
+      function updateFullscreenButton() {
+        fullscreenToggle.textContent = isFullscreen() ? '⛶ Выйти из fullscreen' : '⛶ На весь экран';
+      }
+
+      document.addEventListener('fullscreenchange', updateFullscreenButton);
+      document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+
+      // ---- Sound ----
+      function updateSoundVisibility() {
+        soundControls.style.display = soundAllowed ? 'inline' : 'none';
+      }
+
+      function updateSoundButton() {
+        if (soundEnabled) {
+          soundToggle.innerHTML = '🔊 Звук вкл';
+          soundToggle.classList.add('sound-on');
+        } else {
+          soundToggle.innerHTML = '🔇 Звук выкл';
+          soundToggle.classList.remove('sound-on');
+        }
+      }
+
+     function unlockAudio() {
+      if (audioUnlocked) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) {
+        alert('Ваш браузер не поддерживает звук');
+        return;
+      }
+      const audioCtx = new AudioCtx();
+      const buffer = audioCtx.createBuffer(1, 1, 22050);
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtx.destination);
+      source.start();
+      audioCtx.resume().then(() => {
+        audioUnlocked = true;
+        alert('Звук разблокирован');
+      }).catch(e => {
+        console.warn('Unlock failed', e);
+        alert('Не удалось разблокировать звук. Нажмите ещё раз.');
       });
     }
 
-    function renderAll() {
-      timerValue.textContent = timer.remainingSec ?? 60;
-
-      if (shown && (shown.phase === 'question' || shown.phase === 'answer')) {
-        const n = (shown.qIndex ?? 0) + 1;
-        const total = totalQuestions > 0 ? totalQuestions : '?';
-        countTitle.textContent = `Вопрос ${n} из ${total}`;
-      } else {
-        countTitle.textContent = ' ';
+      function playBeep(type) {
+        if (!soundAllowed) return;
+        if (!soundEnabled) return;
+        if (!audioUnlocked) return;
+        const dataUrl = type === 'short' ? soundsData.beep : soundsData.gong;
+        if (!dataUrl) return;
+        const audio = new Audio(dataUrl);
+        audio.play().catch(e => console.warn('Play error:', e));
       }
 
-      setVisible(scoreWrap, false);
-      answerBlock.classList.remove('centerAnswer');
+      function setVisible(el, on) {
+        if (el) el.classList.toggle('hidden', !on);
+      }
 
-      if (!shown || shown.phase === 'waiting') {
-        phaseTitle.textContent = 'Ждите';
-        questionText.textContent = 'Игра скоро начнётся.';
-        setVisible(questionImg, false);
+      function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, ch => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
+      }
+
+      function renderScoreTableFull() {
+        if (!lastTable) return;
+        const qCount = lastTable.questionsCount ?? 0;
+        let h = '<th>#</th><th>Команда</th>';
+        for (let i = 0; i < qCount; i++) h += `<th>${i+1}</th>`;
+        h += '<th>Итог</th>';
+        scoreHead.innerHTML = h;
+        scoreBody.innerHTML = '';
+        (lastTable.rows || []).forEach((r, idx) => {
+          let row = `<td style="text-align:center;">${idx+1}</td><td style="text-align:left;">${escapeHtml(r.name)}</td>`;
+          for (let i = 0; i < qCount; i++) {
+            const v = (r.perQuestion || [])[i];
+            row += `<td>${v === true ? '+' : (v === false ? '−' : '')}</td>`;
+          }
+          row += `<td><strong>${r.total ?? 0}</strong></td>`;
+          const tr = document.createElement('tr');
+          tr.innerHTML = row;
+          if (r.exhibition) tr.classList.add('exhibition-row');
+          scoreBody.appendChild(tr);
+        });
+      }
+
+      function checkSound() {
+        if (!shown || shown.phase !== 'question') return;
+        if (timer.remainingSec === 0) {
+          if (!timer.overtimeActive && !warnedAt0) {
+            warnedAt0 = true;
+            playBeep('short');
+          } else if (timer.overtimeActive && !gongPlayed) {
+            gongPlayed = true;
+            playBeep('gong');
+          }
+        }
+      }
+
+      function renderPhase() {
+        timerValueDiv.textContent = timer.remainingSec ?? 60;
+        if (timer.overtimeActive) {
+          timerValueDiv.classList.add('overtime');
+        } else {
+          timerValueDiv.classList.remove('overtime');
+        }
+
+        if (shown && (shown.phase === 'question' || shown.phase === 'answer')) {
+          const n = (shown.qIndex ?? 0) + 1;
+          let title = '';
+          if (shown.isWarmup) {
+            title = `Разминочный ${shown.warmupNumber}`;
+          } else {
+            const displayNumber = shown.displayNumber !== undefined ? shown.displayNumber : n;
+            title = shown.phase === 'question' ? `Вопрос ${displayNumber}` : `Ответ ${displayNumber}`;
+          }
+          phaseTitle.textContent = title;
+          countTitle.textContent = '';
+        } else {
+          phaseTitle.textContent = 'Ждите';
+          countTitle.textContent = '';
+        }
+
+        setVisible(scoreWrap, false);
         setVisible(answerBlock, false);
-        setVisible(commentImg, false);
-        return;
+        answerBlock.classList.remove('centerAnswer');
+
+        questionImg.src = shown.handoutImage || '';
+        commentImg.src = shown.commentImage || '';
+
+        const hasHandout = !!shown.handoutImage;
+        const hasCommentImg = !!shown.commentImage;
+        const hasAnyImage = hasHandout || hasCommentImg;
+
+        setVisible(imageColumn, hasAnyImage);
+
+        if (!shown || shown.phase === 'waiting') {
+          phaseTitle.textContent = 'Ждите';
+          questionText.textContent = 'Игра скоро начнётся.';
+          setVisible(questionImg, false);
+          setVisible(commentImg, false);
+          return;
+        }
+
+        if (shown.phase === 'break') {
+          phaseTitle.textContent = 'Перерыв';
+          questionText.textContent = 'Пауза.';
+          setVisible(questionImg, false);
+          setVisible(commentImg, false);
+          return;
+        }
+
+        if (shown.phase === 'table') {
+          phaseTitle.textContent = 'Таблица результатов';
+          questionText.textContent = '';
+          setVisible(scoreWrap, true);
+          setVisible(questionImg, false);
+          setVisible(commentImg, false);
+          renderScoreTableFull();
+          return;
+        }
+
+        if (shown.phase === 'question') {
+          setVisible(questionImg, hasHandout);
+          setVisible(commentImg, false);
+          questionText.textContent = shown.questionText || '';
+          setVisible(answerBlock, false);
+          if (lastQuestionIndex !== shown.qIndex) {
+            lastQuestionIndex = shown.qIndex;
+            warnedAt0 = false;
+            gongPlayed = false;
+          }
+        } else {
+          setVisible(questionImg, false);
+          setVisible(commentImg, hasCommentImg);
+          questionText.textContent = '';
+          setVisible(answerBlock, true);
+          const a = shown.answerText || '';
+          const c = shown.commentText || '';
+          answerText.textContent = c ? `${a}\n\n${c}` : a;
+          if (!hasCommentImg) {
+            answerBlock.classList.add('centerAnswer');
+          }
+        }
+        checkSound();
       }
 
-      if (shown.phase === 'break') {
-        phaseTitle.textContent = 'Перерыв';
-        questionText.textContent = 'Пауза.';
-        setVisible(questionImg, false);
-        setVisible(answerBlock, false);
-        setVisible(commentImg, false);
-        return;
+      function connectWebSocket() {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${protocol}://${location.host}/?role=player`);
+
+        ws.onopen = () => {
+          connBadge.textContent = 'Соединение: подключено';
+          reconnectAttempts = 0;
+        };
+
+        ws.onerror = () => {
+          connBadge.textContent = 'Соединение: ошибка';
+        };
+
+        ws.onclose = () => {
+          connBadge.textContent = 'Соединение: закрыто, переподключение...';
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+          reconnectAttempts++;
+          setTimeout(connectWebSocket, delay);
+        };
+
+        ws.onmessage = (event) => {
+          let msg;
+          try { msg = JSON.parse(event.data); } catch { return; }
+          const { type, payload } = msg || {};
+
+          if (type === 'init_for_player') {
+            shown = payload?.shown || { phase: 'waiting' };
+            timer = payload?.timer || { running: false, remainingSec: 60, overtimeActive: false };
+            soundsData = payload?.sounds || { beep: null, gong: null };
+            soundAllowed = payload?.soundEnabled === true;
+            updateSoundVisibility();
+            renderPhase();
+          } else if (type === 'shown_update') {
+            shown = payload || { phase: 'waiting' };
+            renderPhase();
+          } else if (type === 'timer_update') {
+            timer = payload || { running: false, remainingSec: 60, overtimeActive: false };
+            renderPhase();
+          } else if (type === 'break_table') {
+            lastTable = payload;
+            totalQuestions = payload?.questionsCount || 0;
+            if (shown && shown.phase === 'table') renderScoreTableFull();
+            renderPhase();
+          } else if (type === 'sounds_update') {
+            soundsData = payload || { beep: null, gong: null };
+          } else if (type === 'sound_permission') {
+            soundAllowed = payload?.soundEnabled === true;
+            if (!soundAllowed) soundEnabled = false;
+            updateSoundVisibility();
+            updateSoundButton();
+          }
+        };
       }
 
-      if (shown.phase === 'table') {
-        phaseTitle.textContent = 'Таблица результатов';
-        questionText.textContent = '';
-        setVisible(questionImg, false);
-        setVisible(answerBlock, false);
-        setVisible(commentImg, false);
-        setVisible(scoreWrap, true);
-        renderScoreTableFull();
-        return;
-      }
+      connectWebSocket();
 
-      const n = (shown.qIndex ?? 0) + 1;
-      phaseTitle.textContent = shown.phase === 'question' ? `Вопрос ${n}` : `Ответ ${n}`;
+      soundToggle.onclick = () => {
+        soundEnabled = !soundEnabled;
+        updateSoundButton();
+      };
+      updateSoundButton();
+      updateSoundVisibility();
 
-      if (shown.phase === 'question') {
-        questionImg.src = shown.handoutImage;
-        setVisible(questionImg, !!shown.handoutImage);
+      btnUnlockAudio.onclick = unlockAudio;
 
-        questionText.textContent = shown.questionText || '';
-        setVisible(answerBlock, false);
-        setVisible(commentImg, false);
-        return;
-      }
+      // ---- Theme toggle ----
+      applyTheme();
+      themeToggle.onclick = () => {
+        darkTheme = !darkTheme;
+        applyTheme();
+      };
 
-      if (shown.phase === 'answer') {
-        setVisible(questionImg, false);
-        questionText.textContent = '';
+      // ---- Fullscreen toggle ----
+      updateFullscreenButton();
+      fullscreenToggle.onclick = toggleFullscreen;
 
-        setVisible(answerBlock, true);
-        answerBlock.classList.add('centerAnswer');
+      // F11 key for fullscreen
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'F11') {
+          e.preventDefault();
+          toggleFullscreen();
+        }
+      });
 
-        const a = shown.answerText || '';
-        answerText.textContent = `${a}`;
-
-        setVisible(commentImg, false);
-        return;
-      }
-    }
-
-    ws.onopen = () => connBadge.textContent = 'Соединение: подключено';
-    ws.onerror = () => connBadge.textContent = 'Соединение: ошибка';
-    ws.onclose = () => connBadge.textContent = 'Соединение: отключено';
-
-    ws.onmessage = (event) => {
-      let msg;
-      try { msg = JSON.parse(event.data); } catch { return; }
-      const { type, payload } = msg || {};
-
-      if (type === 'init_for_player') {
-        shown = payload?.shown || { phase: 'waiting' };
-        timer = payload?.timer || { running: false, remainingSec: 60 };
-        renderAll();
-        return;
-      }
-
-      if (type === 'shown_update') {
-        shown = payload || { phase: 'waiting' };
-        renderAll();
-        return;
-      }
-
-      if (type === 'timer_update') {
-        timer = payload || { running: false, remainingSec: 60 };
-        renderAll();
-        return;
-      }
-
-      if (type === 'break_table') {
-        lastTable = payload;
-        totalQuestions = payload?.questionsCount || 0;
-        if (shown && shown.phase === 'table') renderScoreTableFull();
-        renderAll();
-        return;
-      }
-    };
+      // Escape exits fullscreen naturally via browser API
+    })();
   </script>
 </body>
 </html>

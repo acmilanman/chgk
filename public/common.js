@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>ЧГК — Капитан</title>
+  <title>ЛЕИ — Капитан</title>
   <style>
     body { font-family: sans-serif; margin: 20px; }
     .timer { font-size: 32px; margin: 10px 0; }
@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <h1>ЧГК — Капитан</h1>
+  <h1>ЛЕИ — Капитан</h1>
 
   <div id="teamSelectBlock">
     <label for="teamSelect">Выберите свою команду:</label>
